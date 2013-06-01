@@ -9,7 +9,7 @@
 
 // this must be loaded *after* jade.js
 
-cktsim = (function() {
+var cktsim = (function() {
     
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -20,7 +20,7 @@ cktsim = (function() {
 	// extend connection points to display operating point voltage
 	jade.ConnectionPoint.prototype.display_voltage = function(diagram,vmap) {
 	    var v = vmap[this.label];
-	    if (v != undefined) {
+	    if (v !== undefined) {
 		var label = v.toFixed(2) + 'V';
 		
 		// first draw some solid blocks in the background
@@ -36,7 +36,7 @@ cktsim = (function() {
 		// only display each node voltage once
 		delete vmap[this.label];
 	    }
-	}
+	};
 
 	// extend components to display operating point branch currents
 	// default behavior: nothing to display for DC analysis
@@ -45,7 +45,7 @@ cktsim = (function() {
 		// current probe
 		var label = 'I(' + this.name + ')';
 		var v = vmap[label];
-		if (v != undefined) {
+		if (v !== undefined) {
 		    var i = jade.engineering_notation(v,2) + 'A';
 		    this.draw_text(diagram,i,8,5,1,diagram.annotation_font,diagram.annotation_style);
 
@@ -53,19 +53,22 @@ cktsim = (function() {
 		    delete vmap[label];
 		}
 	    }
-	}
+	};
 
 	// callback to annotate diagram with operating point results
 	function display_dc(diagram,operating_point) {
 	    // make a copy of the operating_point info so we can mess with it
 	    var temp = {};
-	    for (var i in operating_point) temp[i] = operating_point[i];
+	    for (var i in operating_point) {
+		temp[i] = operating_point[i];
+	    }
 
 	    // run through connection points displaying (once) the voltage
 	    // for each electrical node
 	    var connection_points = diagram.aspect.connection_points;
-	    for (var location in connection_points)
+	    for (var location in connection_points) {
 		(connection_points[location])[0].display_voltage(diagram,temp);
+	    }
 
 	    // let components display branch current info if available
 	    diagram.aspect.map_over_components(function(c) {
@@ -80,7 +83,9 @@ cktsim = (function() {
 
 	    // use modules in the analog library as the leafs
 	    var mlist = [];
-	    for (m in jade.libraries.analog.modules) mlist.push('analog:'+m);
+	    for (var m in jade.libraries.analog.modules) {
+		mlist.push('analog:'+m);
+	    }
 	    var netlist = diagram.netlist(mlist);
 
 	    if (netlist.length > 0) {
@@ -96,10 +101,12 @@ cktsim = (function() {
 		    return;
 		}
 
-		if (operating_point != undefined) {
+		if (operating_point !== undefined) {
 		    // save a copy of the results for submission
 		    var dc = {};
-		    for (var i in operating_point) dc[i] = operating_point[i];
+		    for (var i in operating_point) {
+			dc[i] = operating_point[i];
+		    }
 		    // add permanenty copy to module's properties
 		    diagram.aspect.module.set_property('dc_results',dc);
 
@@ -124,7 +131,7 @@ cktsim = (function() {
 	// type is 'voltage' or 'current'
 	function find_probes(netlist) {
 	    var result = [];
-	    for (var i = netlist.length - 1; i >= 0; --i) {
+	    for (var i = netlist.length - 1; i >= 0; i -= 1) {
 		var component = netlist[i];
 		var type = component[0];
 		var connections = component[1];
@@ -149,7 +156,9 @@ cktsim = (function() {
     
 	    // use modules in the analog library as the leafs
 	    var mlist = [];
-	    for (m in jade.libraries.analog.modules) mlist.push('analog:'+m);
+	    for (var m in jade.libraries.analog.modules) {
+		mlist.push('analog:'+m);
+	    }
 	    var netlist = diagram.netlist(mlist);
 
 	    if (find_probes(netlist).length == 0) {
@@ -175,10 +184,11 @@ cktsim = (function() {
 		    module.set_property('ac_fstop',ac_fstop);
 		    module.set_property('ac_source',ac_source);
 
-		    ac_analysis(netlist,diagram,
-				parse_number(ac_fstart),
-				parse_number(ac_fstop),
-				ac_source);
+		    ac_fstart = jade.parse_number_alert(ac_fstart);
+		    ac_fstop = jade.parse_number(ac_fstop);
+		    if (ac_fstart === undefined || ac_fstop === undefined) return;
+
+		    ac_analysis(netlist,diagram,ac_fstart,ac_fstop,ac_source);
 		});
 	}
 
@@ -188,7 +198,9 @@ cktsim = (function() {
 
 	    // use modules in the analog library as the leafs
 	    var mlist = [];
-	    for (m in jade.libraries.analog.modules) mlist.push('analog:'+m);
+	    for (var m in jade.libraries.analog.modules) {
+		mlist.push('analog:'+m);
+	    }
 	    var netlist = diagram.netlist(mlist);
 
 	    if (netlist.length > 0) {
@@ -210,8 +222,9 @@ cktsim = (function() {
 		    var x_values = results._frequencies_;
 
 		    // x axis will be a log scale
-		    for (var i = x_values.length - 1; i >= 0; --i)
+		    for (var i = x_values.length - 1; i >= 0; i -= 1) {
 			x_values[i] = Math.log(x_values[i])/Math.LN10;
+		    }
 
 		    // see what we need to submit.  Expecting attribute of the form
 		    // submit_analyses="{'tran':[[node_name,t1,t2,t3],...],
@@ -220,22 +233,22 @@ cktsim = (function() {
 		    if (submit && submit.indexOf('{') == 0) submit = JSON.parse(submit).ac;
 		    else submit = undefined;
 
-		    if (submit != undefined) {
+		    if (submit !== undefined) {
 			// save a copy of the results for submission
 			var ac_results = {};
 
 			// save requested values for each requested node
-			for (var j = 0; j < submit.length; j++) {
+			for (var j = 0; j < submit.length; j += 1) {
 			    var flist = submit[j];    // [node_name,f1,f2,...]
 			    var node = flist[0];
 			    var values = results[node];
 			    var fvlist = [];
 			    // for each requested freq, interpolate response value
-			    for (var k = 1; k < flist.length; k++) {
+			    for (var k = 1; k < flist.length; k += 1) {
 				var f = flist[k];
 				var v = interpolate(f,x_values,values);
 				// convert to dB
-				fvlist.push([f,v == undefined ? 'undefined' : 20.0 * Math.log(v)/Math.LN10]);
+				fvlist.push([f,v === undefined ? 'undefined' : 20.0 * Math.log(v)/Math.LN10]);
 			    }
 			    // save results as list of [f,response] paris
 			    ac_results[node] = fvlist;
@@ -253,7 +266,7 @@ cktsim = (function() {
 		    var probe_color = [];
 
 		    // Check for probe with near zero transfer function and warn
-		    for (var i = probes.length - 1; i >= 0; --i) {
+		    for (i = probes.length - 1; i >= 0; i -= 1) {
 			if (probes[i][3] != 'voltage') continue;
 			probe_color[i] = probes[i][0];
 			var label = probes[i][1];
@@ -265,7 +278,7 @@ cktsim = (function() {
 		    if (all_max < 1.0e-16) {
 			alert('Zero ac response, -infinity on DB scale.');
 		    } else {
-			for (var i = probes.length - 1; i >= 0; --i) {
+			for (i = probes.length - 1; i >= 0; i -= 1) {
 			    if (probes[i][3] != 'voltage') continue;
 			    if ((probe_maxv[i] / all_max) < 1.0e-10) {
 				alert('Near zero ac response, remove ' + probe_color[i] + ' probe');
@@ -274,16 +287,16 @@ cktsim = (function() {
 			}
 		    }
 
-		    for (var i = probes.length - 1; i >= 0; --i) {
+		    for (i = probes.length - 1; i >= 0; i -= 1) {
 			if (probes[i][3] != 'voltage') continue;
 			var color = probes[i][0];
 			var label = probes[i][1];
-			var offset = cktsim.parse_number(probes[i][2]);
+			var offset = jade.parse_number(probes[i][2]);
 
 			var v = results[label];
 			// convert values into dB relative to source amplitude
 			var v_max = 1;
-			for (var j = v.length - 1; j >= 0; --j)
+			for (var j = v.length - 1; j >= 0; j -= 1)
 			    // convert each value to dB relative to max
 			    v[j] = 20.0 * Math.log(v[j]/v_max)/Math.LN10;
 			y_values.push([color,offset,v]);
@@ -304,15 +317,15 @@ cktsim = (function() {
 	// t is the time at which we want a value
 	// times is a list of timepoints from the simulation
 	function interpolate(t,times,values) {
-	    if (values == undefined) return undefined;
+	    if (values === undefined) return undefined;
 
-	    for (var i = 0; i < times.length; i++)
+	    for (var i = 0; i < times.length; i += 1) {
 		if (t < times[i]) {
 		    // t falls between times[i-1] and times[i]
 		    var t1 = (i == 0) ? times[0] : times[i-1];
 		    var t2 = times[i];
 
-		    if (t2 == undefined) return undefined;
+		    if (t2 === undefined) return undefined;
 
 		    var v1 = (i == 0) ? values[0] : values[i-1];
 		    var v2 = values[i];
@@ -320,6 +333,7 @@ cktsim = (function() {
 		    if (t != t1) v += (t - t1)*(v2 - v1)/(t2 - t1);
 		    return v;
 		}
+	    }
 	}
 
 	// add AC analysis to tool bar
@@ -338,7 +352,9 @@ cktsim = (function() {
     
 	    // use modules in the analog library as the leafs
 	    var mlist = [];
-	    for (m in jade.libraries.analog.modules) mlist.push('analog:'+m);
+	    for (var m in jade.libraries.analog.modules) {
+		mlist.push('analog:'+m);
+	    }
 	    var netlist = diagram.netlist(mlist);
 
 	    if (find_probes(netlist).length == 0) {
@@ -355,9 +371,9 @@ cktsim = (function() {
 	    diagram.dialog('Transient Analysis',content,function() {
 		    // retrieve parameters, remember for next time
 		    module.set_property('tran_tstop',fields[tstop_lbl].value);
-		    var tstop = parse_number(module.properties.tran_tstop);
+		    var tstop = jade.parse_number_alert(module.properties.tran_tstop);
 
-		    if (netlist.length > 0 && tstop != undefined) {
+		    if (netlist.length > 0 && tstop !== undefined) {
 			var ckt = new Circuit();
 			if (!ckt.load_netlist(netlist)) return;
 
@@ -366,8 +382,9 @@ cktsim = (function() {
 			// LTE calculations in transient analysis
 			var probes = find_probes(netlist);
 			var probe_names = {};
-			for (var i = probes.length - 1; i >= 0; --i)
+			for (var i = probes.length - 1; i >= 0; i -= 1) {
 			    probe_names[i] = probes[i][1];
+			}
 
 			var progress = document.createElement('div');
 			progress.className = 'jade-progress';
@@ -412,7 +429,7 @@ cktsim = (function() {
 
 	    if (typeof results == 'string')
 		alert("Error during Transient analysis:\n\n"+results);
-	    else if (results == undefined)
+	    else if (results === undefined)
 		alert("Sorry, no results from transient analysis to plot!");
 	    else {
 		var x_values = results._time_;
@@ -424,21 +441,21 @@ cktsim = (function() {
 		if (submit && submit.indexOf('{') == 0) submit = JSON.parse(submit).tran;
 		else submit = undefined;
 
-		if (submit != undefined) {
+		if (submit !== undefined) {
 		    // save a copy of the results for submission
 		    var tran_results = {};
 
 		    // save requested values for each requested node
-		    for (var j = 0; j < submit.length; j++) {
+		    for (var j = 0; j < submit.length; j += 1) {
 			var tlist = submit[j];    // [node_name,t1,t2,...]
 			var node = tlist[0];
 			var values = results[node];
 			var tvlist = [];
 			// for each requested time, interpolate waveform value
-			for (var k = 1; k < tlist.length; k++) {
+			for (var k = 1; k < tlist.length; k += 1) {
 			    var t = tlist[k];
 			    var v = interpolate(t,x_values,values);
-			    tvlist.push([t,v == undefined ? 'undefined' : v]);
+			    tvlist.push([t,v === undefined ? 'undefined' : v]);
 			}
 			// save results as list of [t,value] pairs
 			tran_results[node] = tvlist;
@@ -451,12 +468,12 @@ cktsim = (function() {
 		var v_values = [];  // voltage values: list of [color,offset,result_array]
 		var i_values = [];  // current values: list of [color,offset,result_array]
 		var x_legend = 'Time';
-		for (var i = probes.length - 1; i >= 0; --i) {
+		for (var i = probes.length - 1; i >= 0; i -= 1) {
 		    var color = probes[i][0];
 		    var label = probes[i][1];
-		    var offset = parse_number(probes[i][2]);
+		    var offset = jade.parse_number(probes[i][2]);
 		    var v = results[label];
-		    if (v == undefined) {
+		    if (v === undefined) {
 			alert('The ' + color + ' probe is connected to node ' + '"' + label + '"' + ' which is not an actual circuit node');
 		    } else if (probes[i][3] == 'voltage') {
 			if (color == 'x-axis') {
@@ -525,7 +542,7 @@ cktsim = (function() {
 	// index of ground node
 	Circuit.prototype.gnd_node = function() {
 	    return -1;
-	}
+	};
 
 	// allocate a new node index
 	Circuit.prototype.node = function(name,ntype,ic) {
@@ -534,7 +551,7 @@ cktsim = (function() {
 	    this.ntypes.push(ntype);
 	    this.initial_conditions.push(ic);
 	    return this.node_index;
-	}
+	};
 
 	// call to finalize the circuit in preparation for simulation
 	Circuit.prototype.finalize = function() {
@@ -543,8 +560,9 @@ cktsim = (function() {
 		this.N = this.node_index + 1;  // number of nodes
 
 		// give each device a chance to finalize itself
-		for (var i = this.devices.length - 1; i >= 0; --i)
+		for (var i = this.devices.length - 1; i >= 0; i -= 1) {
 		    this.devices[i].finalize(this);
+		}
 
 		// set up augmented matrix and various temp vectors
 		this.matrix = mat_make(this.N, this.N+1);
@@ -556,7 +574,7 @@ cktsim = (function() {
 		this.abstol = new Array(this.N);
 		this.solution = new Array(this.N);
 		this.rhs = new Array(this.N);
-		for (var i = this.N - 1; i >= 0; --i) {	    
+		for (i = this.N - 1; i >= 0; i -= 1) {	    
 		    this.soln_max[i] = 0.0;
 		    this.abstol[i] = this.ntypes[i] == T_VOLTAGE ? v_abstol : i_abstol;
 		    this.solution[i] = 0.0;
@@ -564,7 +582,7 @@ cktsim = (function() {
 		}
 
 		// Load up the linear elements once and for all
-		for (var i = this.devices.length - 1; i >= 0; --i) {
+		for (i = this.devices.length - 1; i >= 0; i -= 1) {
 		    this.devices[i].load_linear(this)
 		}
 
@@ -572,10 +590,11 @@ cktsim = (function() {
 		var n_vsrc = this.voltage_sources.length;
 		if (n_vsrc > 0) { // At least one voltage source
 		    var GV = mat_make(n_vsrc, this.N);  // Loop check
-		    for (var i = n_vsrc - 1; i >= 0; --i) {
+		    for (i = n_vsrc - 1; i >= 0; i -= 1) {
 			var branch = this.voltage_sources[i].branch;
-			for (var j = this.N - 1; j >= 0; j--)
+			for (var j = this.N - 1; j >= 0; j -= 1) {
 			    GV[i][j] = this.Gl[branch][j];
+			}
 		    }
 		    var rGV = mat_rank(GV);
 		    if (rGV < n_vsrc) {
@@ -584,7 +603,7 @@ cktsim = (function() {
 		}
 	    }
 	    return true;		
-	}
+	};
 
 	// these components are extracted but don't represent a cktsim device
 	var ignored_components = ["analog:g",
@@ -598,7 +617,7 @@ cktsim = (function() {
 	// load circuit from JSON netlist: [[device,[connections,...],{prop: value,...}]...]
 	Circuit.prototype.load_netlist = function(netlist) {
 	    // set up mapping for all ground connections
-	    for (var i = netlist.length - 1; i >= 0; --i) {
+	    for (var i = netlist.length - 1; i >= 0; i -= 1) {
 		var component = netlist[i];
 		if (component[0] == 'analog:g') {
 		    var connections = component[1];
@@ -609,7 +628,7 @@ cktsim = (function() {
 	    // process each component in the JSON netlist (see schematic.js for format)
 	    var found_ground = false;   // is some component hooked to gnd?
 	    var counts = {};
-	    for (var i = netlist.length - 1; i >= 0; --i) {
+	    for (var i = netlist.length - 1; i >= 0; i -= 1) {
 		var component = netlist[i];
 		var type = component[0];
 		var connections = component[1];
@@ -624,7 +643,7 @@ cktsim = (function() {
 		for (var c in connections) {
 		    var node = connections[c];
 		    var index = this.node_map[node];
-		    if (index == undefined) index = this.node(node,T_VOLTAGE);
+		    if (index === undefined) index = this.node(node,T_VOLTAGE);
 		    else if (index == this.gnd_node()) found_ground = true;
 		    connections[c] = index;
 		}
@@ -659,11 +678,13 @@ cktsim = (function() {
 	    }
 
 	    var msg = (this.node_index + 1).toString() + ' nodes';
-	    for (d in counts) msg += ', '+counts[d].toString()+' '+d.split(':')[1];
+	    for (var d in counts) {
+		msg += ', '+counts[d].toString()+' '+d.split(':')[1];
+	    }
 	    console.log(msg);
 
 	    return true;
-	}
+	};
 
 	// if converges: updates this.solution, this.soln_max, returns iter count
 	// otherwise: return undefined and set this.problem_node
@@ -678,20 +699,22 @@ cktsim = (function() {
 	    var down_count = 0;
 
 	    // iteratively solve until values converge or iteration limit exceeded
-	    for (var iter = 0; iter < maxiters; iter++) {
+	    for (var iter = 0; iter < maxiters; iter += 1) {
 		// set up equations
 		load.call(this,soln,rhs);   // load should be a method of Circuit
 
 		// Compute norm of rhs, assume variables of v type go with eqns of i type
 		abssum_rhs = 0;
-		for (var i = this.N - 1; i >= 0; --i)
+		for (var i = this.N - 1; i >= 0; i -= 1) {
 		    if (this.ntypes[i] == T_VOLTAGE)
 			abssum_rhs += Math.abs(rhs[i]);
+		}
 
 		if ((iter > 0) && (use_limiting == false) && (abssum_old < abssum_rhs)) {  
 		    // Old rhsnorm was better, undo last iter and turn on limiting
-		    for (var i = this.N - 1; i >= 0; --i)
+		    for (var i = this.N - 1; i >= 0; i -= 1) {
 			soln[i] -= d_sol[i];
+		    }
 		    iter -= 1;
 		    use_limiting = true;
 		}
@@ -726,7 +749,7 @@ cktsim = (function() {
 
 
 		// Update solution and check delta convergence
-		for (var i = this.N - 1; i >= 0; --i) {
+		for (var i = this.N - 1; i >= 0; i -= 1) {
 		    // Simple voltage step limiting to encourage Newton convergence
 		    if (use_limiting) {
 			if (this.ntypes[i] == T_VOLTAGE) {
@@ -744,15 +767,16 @@ cktsim = (function() {
 
 		//alert(numeric.prettyPrint(this.solution);)
                 if (converged == true) {
-		    for (var i = this.N - 1; i >= 0; --i) 
+		    for (var i = this.N - 1; i >= 0; i -= 1)  {
 			if (Math.abs(soln[i]) > this.soln_max[i])
 			    this.soln_max[i] = Math.abs(soln[i]);
+		    }
 		    
 		    return iter+1;
 		}
 	    }
 	    return undefined;
-	}
+	};
 
 	// Define -f and df/dx for Newton solver
 	Circuit.prototype.load_dc = function(soln,rhs) {
@@ -761,11 +785,12 @@ cktsim = (function() {
 	    // G matrix is initialized with linear Gl
 	    mat_copy(this.Gl,this.G);
 	    // Now load up the nonlinear parts of rhs and G
-	    for (var i = this.devices.length - 1; i >= 0; --i)
+	    for (var i = this.devices.length - 1; i >= 0; i -= 1) {
 		this.devices[i].load_dc(this,soln,rhs);
+	    }
 	    // G matrix is copied in to the system matrix
 	    mat_copy(this.G,this.matrix);
-	}
+	};
 
 	// DC analysis
 	Circuit.prototype.dc = function() {
@@ -797,13 +822,13 @@ cktsim = (function() {
 		    result[name] = (index == -1) ? 0 : this.solution[index];
 		}
 		// capture branch currents from voltage sources
-		for (var i = this.voltage_sources.length - 1; i >= 0; --i) {
+		for (var i = this.voltage_sources.length - 1; i >= 0; i -= 1) {
 		    var v = this.voltage_sources[i];
 		    result['I('+v.name+')'] = this.solution[v.branch];
 		}
 		return result;
 	    }
-	}
+	};
 
 	// initialize everything for transient analysis
 	Circuit.prototype.tran_start = function(progress,ntpts,tstart,tstop) {
@@ -812,7 +837,7 @@ cktsim = (function() {
 		// Otherwise, do the setup also done in dc.
 		var no_dc = false;
 		if ((this.diddc == false) && (no_dc == false)) {
-		    if (this.dc() == undefined) { // DC failed, realloc mats and vects.
+		    if (this.dc() === undefined) { // DC failed, realloc mats and vects.
 			alert('DC failed, trying transient analysis from zero.');		    
 			this.finalized = false;  // Reset the finalization.
 			if (this.finalize() == false) 
@@ -826,7 +851,7 @@ cktsim = (function() {
 		// build array to hold list of results for each variable
 		// last entry is for timepoints.
 		this.response = new Array(this.N + 1);
-		for (var i = this.N; i >= 0; --i) this.response[i] = new Array();
+		for (var i = this.N; i >= 0; i -= 1) this.response[i] = new Array();
 
 		// Allocate back vectors for up to a second order method
 		this.old3sol = new Array(this.N);
@@ -849,12 +874,13 @@ cktsim = (function() {
 
 		// Non-algebraic variables and probe variables get lte
 		this.ltecheck = new Array(this.N);
-		for (var i = this.N; i >= 0; --i) 
+		for (var i = this.N; i >= 0; i -= 1) {
 		    this.ltecheck[i] = (this.ar[i] == 0);
+		}
 
 		for (var name in this.node_map) {
 		    var index = this.node_map[name];
-		    for (var i = progress.probe_names.length; i >= 0; --i) {
+		    for (var i = progress.probe_names.length; i >= 0; i -= 1) {
 			if (name == progress.probe_names[i]) {
 			    this.ltecheck[index] = true;
 			    break;
@@ -864,12 +890,12 @@ cktsim = (function() {
 
 		// Check for periodic sources
 		var period = tstop - tstart;
-		for (var i = this.voltage_sources.length - 1; i >= 0; --i) {
+		for (var i = this.voltage_sources.length - 1; i >= 0; i -= 1) {
 		    var per = this.voltage_sources[i].src.period;
 		    if (per > 0)
 			period = Math.min(period, per);
 		}
-		for (var i = this.current_sources.length - 1; i >= 0; --i) {
+		for (var i = this.current_sources.length - 1; i >= 0; i -= 1) {
 		    var per = this.current_sources[i].src.period;
 		    if (per > 0)
 			period = Math.min(period, per);
@@ -887,7 +913,7 @@ cktsim = (function() {
 
 		// Initialize old crnts, charges, and solutions.
 		this.load_tran(this.solution,this.rhs)
-		for (var i = this.N-1; i >= 0; --i) {
+		for (var i = this.N-1; i >= 0; i -= 1) {
 		    this.old3sol[i] = this.solution[i];
 		    this.old2sol[i] = this.solution[i];
 		    this.oldsol[i] = this.solution[i];
@@ -909,7 +935,7 @@ cktsim = (function() {
 		    progress.finish(e,progress);
 		else throw e;
 	    }
-	}
+	};
 
 	Circuit.prototype.pick_step = function() {
 	    var min_shrink_factor = 1.0/lte_step_decrease_factor;
@@ -928,7 +954,7 @@ cktsim = (function() {
 
 	    var trapcoeff = 0.5*(this.time - this.oldt)/(this.time - this.old3t);
 	    var maxlteratio = 0.0;
-	    for (var i = this.N-1; i >= 0; --i) {
+	    for (var i = this.N-1; i >= 0; i -= 1) {
 		if (this.ltecheck[i]) { // Check lte on variable
 		    var pred = p0*this.oldsol[i] + p1*this.old2sol[i] + p2*this.old3sol[i];
 		    var lte = Math.abs((this.solution[i] - pred))*trapcoeff;
@@ -951,7 +977,7 @@ cktsim = (function() {
 		new_step = Math.min(new_step, this.max_step);
 	    }
 	    return new_step;
-	}
+	};
 
 	// Define -f and df/dx for Newton solver
 	Circuit.prototype.load_tran = function(soln,rhs) {
@@ -960,12 +986,13 @@ cktsim = (function() {
 	    // G matrix is initialized with linear Gl
 	    mat_copy(this.Gl,this.G);
 	    // Now load up the nonlinear parts of crnt and G
-	    for (var i = this.devices.length - 1; i >= 0; --i)
+	    for (var i = this.devices.length - 1; i >= 0; i -= 1) {
 		this.devices[i].load_tran(this,soln,this.c,this.time);
+	    }
 	    // Exploit the fact that storage elements are linear
 	    mat_v_mult(this.C, soln, this.q, 1.0);
 	    // -rhs = c - dqdt
-	    for (var i = this.N-1; i >= 0; --i) {
+	    for (var i = this.N-1; i >= 0; i -= 1) {
 		var dqdt = this.alpha0*this.q[i] + this.alpha1*this.oldq[i] + 
 		    this.alpha2*this.old2q[i];
 		//alert(numeric.prettyPrint(dqdt));
@@ -973,7 +1000,7 @@ cktsim = (function() {
 	    }
 	    // matrix = beta0*G + alpha0*C.
 	    mat_scale_add(this.G,this.C,this.beta0,this.alpha0,this.matrix);
-	}
+	};
 
 	// here's where the real work is done
 	// tupdate is the time we should update progress bar
@@ -981,7 +1008,7 @@ cktsim = (function() {
 	    if (!this.progress.stop_requested)   // halt when user clicks stop
 		while (this.step_index < this.max_nsteps) {
 		    // Save the just computed solution, and move back q and c.
-		    for (var i = this.N - 1; i >= 0; --i) {
+		    for (var i = this.N - 1; i >= 0; i -= 1) {
 			if (this.step_index >= 0)
 			    this.response[i].push(this.solution[i]);
 			this.oldc[i] = this.c[i];
@@ -1022,7 +1049,7 @@ cktsim = (function() {
 		    }
 
 		    // For trap rule, turn off current avging for algebraic eqns
-		    for (var i = this.N - 1; i >= 0; --i) {
+		    for (var i = this.N - 1; i >= 0; i -= 1) {
 			this.beta0[i] = this._beta0 + this.ar[i]*this._beta1;
 			this.beta1[i] = (1.0 - this.ar[i])*this._beta1;
 		    }
@@ -1036,7 +1063,7 @@ cktsim = (function() {
 
 			// If timestep is 1/10,000th of tstop, just use BE.
 			if ((this.time-this.oldt) < 1.0e-4*this.tstop) {
-			    for (var i = this.N - 1; i >= 0; --i) {
+			    for (var i = this.N - 1; i >= 0; i -= 1) {
 				this.beta0[i] = 1.0;
 				this.beta1[i] = 0.0;
 			    }
@@ -1047,11 +1074,11 @@ cktsim = (function() {
 			// If NR succeeds and stepsize is at min, accept and newstep=maxgrowth*minstep.
 			// Else if Newton Fails, shrink step by a factor and try again
 			// Else LTE picks new step, if bigger accept current step and go on.
-			if ((iterations != undefined) && 
+			if ((iterations !== undefined) && 
 			    (this.step_index <= 0 || (this.time-this.oldt) < (1+reltol)*this.min_step)) {
 			    if (this.step_index > 0) this.new_step = time_step_increase_factor*this.min_step;
 			    break;
-			} else if (iterations == undefined) {  // NR nonconvergence, shrink by factor
+			} else if (iterations === undefined) {  // NR nonconvergence, shrink by factor
 			    //alert('timestep nonconvergence ' + this.time + ' ' + this.step_index);
 			    this.time = this.oldt + 
 			    (this.time - this.oldt)/nr_step_decrease_factor;
@@ -1099,14 +1126,14 @@ cktsim = (function() {
 		result[name] = (index == -1) ? 0 : this.response[index];
 	    }
 	    // capture branch currents from voltage sources
-	    for (var i = this.voltage_sources.length - 1; i >= 0; --i) {
+	    for (var i = this.voltage_sources.length - 1; i >= 0; i -= 1) {
 		var v = this.voltage_sources[i];
 		result['I('+v.name+')'] = this.response[v.branch];
 	    }
 	    result._time_ = this.response[this.N];
 
 	    this.progress.finish(result,this.progress);
-	}
+	};
 
 	// AC analysis: npts/decade for freqs in range [fstart,fstop]
 	// result._frequencies_ = vector of log10(sample freqs)
@@ -1114,7 +1141,7 @@ cktsim = (function() {
         // NOTE: Normalization removed in schematic.js, jkw.
         Circuit.prototype.ac = function(npts,fstart,fstop,source_name) {
 
-	    if (this.dc() == undefined) { // DC failed, realloc mats and vects.
+	    if (this.dc() === undefined) { // DC failed, realloc mats and vects.
 		return undefined;
 	    }
 
@@ -1134,13 +1161,17 @@ cktsim = (function() {
 	    // build array to hold list of magnitude and phases for each node
 	    // last entry is for frequency values
 	    var response = new Array(2*N + 1);
-	    for (var i = 2*N; i >= 0; --i) response[i] = new Array();
+	    for (var i = 2*N; i >= 0; i -= 1) {
+		response[i] = new Array();
+	    }
 
 	    // multiplicative frequency increase between freq points
 	    var delta_f = Math.exp(Math.LN10/npts);
 
 	    var phase_offset = new Array(N);
-	    for (var i = N-1; i >= 0; --i) phase_offset[i] = 0;
+	    for (var i = N-1; i >= 0; i -= 1) {
+		phase_offset[i] = 0;
+	    }
 
 	    var f = fstart;
 	    fstop *= 1.0001;  // capture that last freq point!
@@ -1150,12 +1181,12 @@ cktsim = (function() {
 
 		// Find complex x+jy that sats Gx-omega*Cy=rhs; omega*Cx+Gy=0
 		// Note: solac[0:N-1]=x, solac[N:2N-1]=y
-		for (var i = N-1; i >= 0; --i) {
+		for (var i = N-1; i >= 0; i -= 1) {
 		    // First the rhs, replicated for real and imaginary
 		    matrixac[i][2*N] = this.rhs[i];
 		    matrixac[i+N][2*N] = 0;
 
-		    for (var j = N-1; j >= 0; --j) {
+		    for (var j = N-1; j >= 0; j -= 1) {
 			matrixac[i][j] = G[i][j];
 			matrixac[i+N][j+N] = G[i][j];
 			matrixac[i][j+N] = -omega*C[i][j];
@@ -1167,7 +1198,7 @@ cktsim = (function() {
 		var solac = mat_solve(matrixac);
 
 		// Save magnitude and phase
-		for (var i = N - 1; i >= 0; --i) {
+		for (var i = N - 1; i >= 0; i -= 1) {
 		    var mag = Math.sqrt(solac[i]*solac[i] + solac[i+N]*solac[i+N]);
 		    response[i].push(mag);
 
@@ -1198,7 +1229,7 @@ cktsim = (function() {
 	    }
 	    result._frequencies_ = response[2*N];
 	    return result;
-	}
+	};
 
 
         // Helper for adding devices to a circuit, warns on duplicate device names.
@@ -1208,12 +1239,12 @@ cktsim = (function() {
 	    d.name = name;
 	    if (name) this.device_map[name] = d;
 	    return d;
-	}
+	};
 
 	Circuit.prototype.r = function(n1,n2,v,name) {
 	    // try to convert string value into numeric value, barf if we can't
 	    if ((typeof v) == 'string') {
-		v = parse_number_alert(v);
+		v = jade.parse_number_alert(v);
 		if (v === undefined) return undefined;
 	    }
 
@@ -1221,12 +1252,12 @@ cktsim = (function() {
 		var d = new Resistor(n1,n2,v);
 		return this.add_device(d, name);
 	    } else return this.v(n1,n2,'0',name);   // zero resistance == 0V voltage source
-	}
+	};
 
 	Circuit.prototype.d = function(n1,n2,area,type,name) {
 	    // try to convert string value into numeric value, barf if we can't
 	    if ((typeof area) == 'string') {
-		area = parse_number_alert(area);
+		area = jade.parse_number_alert(area);
 		if (area === undefined) return undefined;
 	    }
 
@@ -1234,81 +1265,81 @@ cktsim = (function() {
 		var d = new Diode(n1,n2,area,type);
 		return this.add_device(d, name);
 	    } // zero area diodes discarded.
-	}
+	};
 
 
 	Circuit.prototype.c = function(n1,n2,v,name) {
 	    // try to convert string value into numeric value, barf if we can't
 	    if ((typeof v) == 'string') {
-		v = parse_number_alert(v);
+		v = jade.parse_number_alert(v);
 		if (v === undefined) return undefined;
 	    }
 	    var d = new Capacitor(n1,n2,v);
 	    return this.add_device(d, name);
-	}
+	};
 
 	Circuit.prototype.l = function(n1,n2,v,name) {
 	    // try to convert string value into numeric value, barf if we can't
 	    if ((typeof v) == 'string') {
-		v = parse_number_alert(v);
+		v = jade.parse_number_alert(v);
 		if (v === undefined) return undefined;
 	    }
 	    var branch = this.node(undefined,T_CURRENT);
 	    var d = new Inductor(n1,n2,branch,v);
 	    return this.add_device(d, name);
-	}
+	};
 
         Circuit.prototype.v = function(n1,n2,v,name) {
 	    var branch = this.node(undefined,T_CURRENT);
 	    var d = new VSource(n1,n2,branch,v);
 	    this.voltage_sources.push(d);
 	    return this.add_device(d, name);
-	}
+	};
 
 	Circuit.prototype.i = function(n1,n2,v,name) {
 	    var d = new ISource(n1,n2,v);
 	    this.current_sources.push(d);
 	    return this.add_device(d, name);
-	}
+	};
 
         Circuit.prototype.opamp = function(np,nn,no,ng,A,name) {
 	    // try to convert string value into numeric value, barf if we can't
 	    if ((typeof A) == 'string') {
-		ratio = parse_number_alert(A);
+		ratio = jade.parse_number_alert(A);
 		if (A === undefined) return undefined;
 	    }
 	    var branch = this.node(undefined,T_CURRENT);
 	    var d = new Opamp(np,nn,no,ng,branch,A,name);
 	    return this.add_device(d, name);
-	}
+	};
 
         Circuit.prototype.n = function(d,g,s,W,L,name) {
 	    // try to convert string value into numeric value, barf if we can't
 	    if ((typeof W) == 'string') {
-		W = parse_number_alert(W);
+		W = jade.parse_number_alert(W);
 		if (W === undefined) return undefined;
 	    }
 	    if ((typeof L) == 'string') {
-		L = parse_number_alert(L);
+		L = jade.parse_number_alert(L);
 		if (L === undefined) return undefined;
 	    }
 	    var d = new Fet(d,g,s,W,L,name,'n');
 	    return this.add_device(d, name);
-	}
+	};
 
         Circuit.prototype.p = function(d,g,s,W,L,name) {
 	    // try to convert string value into numeric value, barf if we can't
 	    if ((typeof W) == 'string') {
-		W = parse_number_alert(W);
+		W = jade.parse_number_alert(W);
 		if (W === undefined) return undefined;
 	    }
 	    if ((typeof L) == 'string') {
-		L = parse_number_alert(L);
+		L = jade.parse_number_alert(L);
 		if (L === undefined) return undefined;
 	    }
 	    var d = new Fet(d,g,s,W,L,name,'p');
 	    return this.add_device(d, name);
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -1336,7 +1367,7 @@ cktsim = (function() {
 		}
 	    } else if (j >= 0)
 		M[j][j] += g;
-	}
+	};
 
 	// add val component between two nodes to matrix M
 	// Index of -1 refers to ground node
@@ -1345,42 +1376,42 @@ cktsim = (function() {
 	    if (i >= 0) xi_minus_xj = x[i];
 	    if (j >= 0) xi_minus_xj -= x[j];
 	    return xi_minus_xj
-	}
+	};
 
         Circuit.prototype.add_conductance_l = function(i,j,g) {
             this.add_two_terminal(i,j,g, this.Gl)
-	}
+	};
 
         Circuit.prototype.add_conductance = function(i,j,g) {
             this.add_two_terminal(i,j,g, this.G)
-	}
+	};
 
         Circuit.prototype.add_capacitance = function(i,j,c) {
             this.add_two_terminal(i,j,c,this.C)
-	}
+	};
 
 	// add individual conductance to Gl matrix
 	Circuit.prototype.add_to_Gl = function(i,j,g) {
 	    if (i >=0 && j >= 0)
 		this.Gl[i][j] += g;
-	}
+	};
 
 	// add individual conductance to Gl matrix
 	Circuit.prototype.add_to_G = function(i,j,g) {
 	    if (i >=0 && j >= 0)
 		this.G[i][j] += g;
-	}
+	};
 
 	// add individual capacitance to C matrix
 	Circuit.prototype.add_to_C = function(i,j,c) {
 	    if (i >=0 && j >= 0)
 		this.C[i][j] += c;
-	}
+	};
 
 	// add source info to rhs
         Circuit.prototype.add_to_rhs = function(i,v,rhs) {
 	    if (i >= 0)	rhs[i] += v;
-	}
+	};
 
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -1392,9 +1423,9 @@ cktsim = (function() {
         // Allocate an NxM matrix
         function mat_make(N,M) {
 	    var mat = new Array(N);	
-	    for (var i = N - 1; i >= 0; --i) {	    
+	    for (var i = N - 1; i >= 0; i -= 1) {	    
 		mat[i] = new Array(M);
-		for (var j = M - 1; j >= 0; --j) {	    
+		for (var j = M - 1; j >= 0; j -= 1) {	    
 		    mat[i][j] = 0.0;
 		}
 	    }
@@ -1409,9 +1440,11 @@ cktsim = (function() {
 	    if (n != b.length || m != x.length)
 		throw 'Rows of M mismatched to b or cols mismatch to x.';
 
-	    for (var i = 0; i < n; i++) {
+	    for (var i = 0; i < n; i += 1) {
 		var temp = 0;
-		for (var j = 0; j < m; j++) temp += M[i][j]*x[j];
+		for (var j = 0; j < m; j += 1) {
+		    temp += M[i][j]*x[j];
+		}
 		b[i] = scale*temp;  // Recall the neg in the name
 	    }
 	}
@@ -1426,17 +1459,23 @@ cktsim = (function() {
 	    if (n > C.length || m > C[0].length)
 		throw 'Row or columns of A to large for C';
 	    if ((typeof scalea == 'number') && (typeof scaleb == 'number'))
-		for (var i = 0; i < n; i++)
-		    for (var j = 0; j < m; j++)
+		for (var i = 0; i < n; i += 1) {
+		    for (var j = 0; j < m; j += 1) {
 			C[i][j] = scalea*A[i][j] + scaleb*B[i][j];
+		    }
+		}
 	    else if ((typeof scaleb == 'number') && (scalea instanceof Array))
-		for (var i = 0; i < n; i++)
-		    for (var j = 0; j < m; j++)
+		for (var i = 0; i < n; i += 1) {
+		    for (var j = 0; j < m; j += 1) {
 			C[i][j] = scalea[i]*A[i][j] + scaleb*B[i][j];
+		    }
+		}
 	    else if ((typeof scaleb instanceof Array) && (scalea instanceof Array))
-		for (var i = 0; i < n; i++)
-		    for (var j = 0; j < m; j++)
+		for (var i = 0; i < n; i += 1) {
+		    for (var j = 0; j < m; j += 1) {
 			C[i][j] = scalea[i]*A[i][j] + scaleb[i]*B[i][j];
+		    }
+		}
 	    else
 		throw 'scalea and scaleb must be scalars or Arrays';
 	}
@@ -1450,19 +1489,21 @@ cktsim = (function() {
 	    var R = mat_rank(Mc);
 
 	    var one_if_alg = new Array(Nr);
-	    for (var row = 0; row < Nr; row++) {  // psuedo gnd row small
-		for (var col = Nr - 1; col >= 0; --col)
+	    for (var row = 0; row < Nr; row += 1) {  // psuedo gnd row small
+		for (var col = Nr - 1; col >= 0; col -= 1) {
 		    Mc[row][col] = 0;
+		}
 		if (mat_rank(Mc) == R)  // Zeroing row left rank unchanged
 		    one_if_alg[row] = 1;
 		else { // Zeroing row changed rank, put back
-		    for (var col = Nr - 1; col >= 0; --col)
+		    for (var col = Nr - 1; col >= 0; col -= 1) {
 			Mc[row][col] = M[row][col];
+		    }
 		    one_if_alg[row] = 0;
 		}
 	    }
 	    return one_if_alg;
-	}
+	};
 
         // Copy A -> using the bounds of A
 	function mat_copy(src,dest) {
@@ -1471,9 +1512,11 @@ cktsim = (function() {
 	    if (n > dest.length || m >  dest[0].length)
 		throw 'Rows or cols > rows or cols of dest';
 
-	    for (var i = 0; i < n; i++)
-		for (var j = 0; j < m; j++)
+	    for (var i = 0; i < n; i += 1) {
+		for (var j = 0; j < m; j += 1) {
 		    dest[i][j] = src[i][j];
+		}
+	    }
 	}
 	    
         // Copy and transpose A -> using the bounds of A
@@ -1483,9 +1526,11 @@ cktsim = (function() {
 	    if (n > dest[0].length || m >  dest.length)
 		throw 'Rows or cols > cols or rows of dest';
 
-	    for (var i = 0; i < n; i++)
-		for (var j = 0; j < m; j++)
+	    for (var i = 0; i < n; i += 1) {
+		for (var j = 0; j < m; j += 1) {
 		    dest[j][i] = src[i][j];
+		}
+	    }
 	}
 
 
@@ -1500,8 +1545,8 @@ cktsim = (function() {
 
 	    // Find matrix maximum entry
 	    var max_abs_entry = 0;
-	    for(var row = Nr-1; row >= 0; --row) {
-		for(var col = Nr-1; col >= 0; --col) {
+	    for(var row = Nr-1; row >= 0; row -= 1) {
+		for(var col = Nr-1; col >= 0; col -= 1) {
 		    if (Math.abs(M[row][col]) > max_abs_entry)
 			max_abs_entry = Math.abs(M[row][col]);
 		}
@@ -1510,12 +1555,12 @@ cktsim = (function() {
 	    // Gaussian elimination to find rank
 	    var the_rank = 0;
 	    var start_col = 0;
-	    for (var row = 0; row < Nr; row++) {
+	    for (var row = 0; row < Nr; row += 1) {
 		// Search for first nonzero column in the remaining rows.
-		for (var col = start_col; col < Nc; col++) {
+		for (var col = start_col; col < Nc; col += 1) {
 		    var max_v = Math.abs(M[row][col]);
 		    var max_row = row;
-		    for (var i = row + 1; i < Nr; i++) {
+		    for (var i = row + 1; i < Nr; i += 1) {
 			temp = Math.abs(M[i][col]);
 			if (temp > max_v) { max_v = temp; max_row = i; }
 		    }
@@ -1529,10 +1574,12 @@ cktsim = (function() {
 			M[max_row] = temp;
 
 			// now eliminate this column for all subsequent rows
-			for (var i = row + 1; i < Nr; i++) {
+			for (var i = row + 1; i < Nr; i += 1) {
 			    temp = M[i][col]/M[row][col];   // multiplier for current row
 			    if (temp != 0)  // subtract 
-			    for (var j = col; j < Nc; j++) M[i][j] -= M[row][j]*temp;
+				for (var j = col; j < Nc; j += 1) {
+				    M[i][j] -= M[row][j]*temp;
+				}
 			}
 			// Now move on to the next row
 			break;
@@ -1555,21 +1602,23 @@ cktsim = (function() {
 
 	    // Copy the rhs in to the last column of M if one is given.
 	    if (rhs != null) {
-		for (var row = Nr - 1; row >= 0; --row)
+		for (var row = Nr - 1; row >= 0; row -= 1) {
 		    M[row][Nc-1] = rhs[row];
+		}
 	    }
 
 	    var mat_scale = 0; // Sets the scale for comparison to zero.
 	    var max_nonzero_row = Nr-1;  // Assumes M nonsingular.
-	    for (var row = 0; row < Nr; row++) {  
+	    for (var row = 0; row < Nr; row += 1) {  
 		// Find largest row with largest 2-norm
 		var max_row = row;
 		var maxsumsq = 0;
-		for (var rowp = row; rowp < Nr; rowp++) {
+		for (var rowp = row; rowp < Nr; rowp += 1) {
 		    var Mr = M[rowp];
 		    var sumsq = 0;
-		    for (var col = Nc-2; col >= 0; --col)  // Last col=rhs
+		    for (var col = Nc-2; col >= 0; col -= 1) {  // Last col=rhs
 			sumsq += Mr[col]*Mr[col];
+		    }
 		    if ((row == rowp) || (sumsq > maxsumsq)) {
 			max_row = rowp;
 			maxsumsq = sumsq;
@@ -1596,25 +1645,29 @@ cktsim = (function() {
 
 		// Nonzero row, eliminate from rows below
 		var Mr = M[row];
-		for (var col =  Nc-1; col >= 0; --col) // Scale rhs also
+		for (var col =  Nc-1; col >= 0; col -= 1) { // Scale rhs also
 		    Mr[col] *= scale;
-		for (var rowp = row + 1; rowp < Nr; rowp++) { // Update.
+		}
+		for (var rowp = row + 1; rowp < Nr; rowp += 1) { // Update.
 		    var Mrp = M[rowp];
 		    var inner = 0;
-		    for (var col =  Nc-2; col >= 0; --col)  // Project 
+		    for (var col =  Nc-2; col >= 0; col -= 1) {  // Project 
 			inner += Mr[col]*Mrp[col];
-		    for (var col =  Nc-1; col >= 0; --col) // Ortho (rhs also)
+		    }
+		    for (var col =  Nc-1; col >= 0; col -= 1) { // Ortho (rhs also)
 			Mrp[col] -= inner *Mr[col];
+		    }
 		}
 	    }
 
 	    // Last Column of M has inv(R^T)*rhs.  Scale rows of Q to get x.
 	    var x = new Array(Nc-1);
-	    for (var col = Nc-2; col >= 0; --col)
+	    for (var col = Nc-2; col >= 0; col -= 1) {
 		x[col] = 0;
-	    for (var row = max_nonzero_row; row >= 0; --row) {
+	    }
+	    for (var row = max_nonzero_row; row >= 0; row -= 1) {
 		Mr = M[row];
-		for (var col = Nc-2; col >= 0; --col) {
+		for (var col = Nc-2; col >= 0; col -= 1) {
 		    x[col] += Mr[col]*Mr[Nc-1];
 		}
 	    }
@@ -1631,16 +1684,17 @@ cktsim = (function() {
 
 	    // Copy the rhs in to the last column of M if one is given.
 	    if (rhs != null) {
-		for (var row = 0; row < N ; row++)
+		for (var row = 0; row < N ; row += 1) {
 		    M[row][N] = rhs[row];
+		}
 	    }
 
 	    // gaussian elimination
-	    for (var col = 0; col < N ; col++) {
+	    for (var col = 0; col < N ; col += 1) {
 		// find pivot: largest abs(v) in this column of remaining rows
 		var max_v = Math.abs(M[col][col]);
 		var max_col = col;
-		for (i = col + 1; i < N; i++) {
+		for (i = col + 1; i < N; i += 1) {
 		    temp = Math.abs(M[i][col]);
 		    if (temp > max_v) { max_v = temp; max_col = i; }
 		}
@@ -1655,22 +1709,24 @@ cktsim = (function() {
 		}
 
 		// now eliminate this column for all subsequent rows
-		for (i = col + 1; i < N; i++) {
+		for (i = col + 1; i < N; i += 1) {
 		    temp = M[i][col]/M[col][col];   // multiplier we'll use for current row
 		    if (temp != 0)
 			// subtract current row from row we're working on
 			// remember to process b too!
-			for (j = col; j <= N; j++) M[i][j] -= M[col][j]*temp;
+			for (j = col; j <= N; j += 1) {
+			    M[i][j] -= M[col][j]*temp;
+			}
 		}
 	    }
 
 	    // matrix is now upper triangular, so solve for elements of x starting
 	    // with the last row
 	    var x = new Array(N);
-	    for (i = N-1; i >= 0; --i) {
+	    for (i = N-1; i >= 0; i -= 1) {
 		temp = M[i][N];   // grab b[i] from augmented matrix as RHS
 		// subtract LHS term from RHS using known x values
-		for (j = N-1; j > i; --j) temp -= M[i][j]*x[j];
+		for (j = N-1; j > i; j -= 1) temp -= M[i][j]*x[j];
 		// now compute new x value
 		x[i] = temp/M[i][i];
 	    }
@@ -1695,458 +1751,31 @@ cktsim = (function() {
 
 	// complete initial set up of device
 	Device.prototype.finalize = function() {
-	}
+	};
 
         // Load the linear elements in to Gl and C
         Device.prototype.load_linear = function(ckt) {
-	}
+	};
 
 	// load linear system equations for dc analysis
 	// (inductors shorted and capacitors opened)
         Device.prototype.load_dc = function(ckt,soln,rhs) {
-	}
+	};
 
 	// load linear system equations for tran analysis
 	Device.prototype.load_tran = function(ckt,soln) {
-	}
+	};
 
 	// load linear system equations for ac analysis:
 	// current sources open, voltage sources shorted
 	// linear models at operating point for everyone else
 	Device.prototype.load_ac = function(ckt,rhs) {
-	}
+	};
 
 	// return time of next breakpoint for the device
 	Device.prototype.breakpoint = function(time) {
 	    return undefined;
-	}
-
-	///////////////////////////////////////////////////////////////////////////////
-	//
-	//  Parse numbers in engineering notation
-	//
-	///////////////////////////////////////////////////////////////////////////////
-
-	// convert first character of argument into an integer
-	function ord(ch) {
-	    return ch.charCodeAt(0);
-	}
-
-	// convert string argument to a number, accepting usual notations
-	// (hex, octal, binary, decimal, floating point) plus engineering
-	// scale factors (eg, 1k = 1000.0 = 1e3).
-	// return default if argument couldn't be interpreted as a number
-	function parse_number(x,default_v) {
-	    var m;
-
-	    m = x.match(/^\s*([-+]?)0x([0-9a-fA-F]+)\s*$/);  // hex
-	    if (m) return parseInt(m[1]+m[2],16);
-
-	    m = x.match(/^\s*([-+]?)0b([0-1]+)\s*$/);  // binary
-	    if (m) return parseInt(m[1]+m[2],2);
-
-	    m = x.match(/^\s*([-+]?)0([0-7]+)\s*$/);  // octal
-	    if (m) return parseInt(m[1]+m[2],8);
-
-	    m = x.match(/^\s*[-+]?[0-9]*(\.([0-9]+)?)?([eE][-+]?[0-9]+)?\s*$/);  // decimal, float
-	    if (m) return parseFloat(m[0]);
-
-	    m = x.match(/^\s*([-+]?[0-9]*(\.([0-9]+)?)?)(a|A|f|F|g|G|k|K|m|M|n|N|p|P|t|T|u|U)\s*$/);  // decimal, float
-	    if (m) {
-		var result = parseFloat(m[1]);
-		var scale = m[4];
-		if (scale == 'P') result *= 1e15;   // peta
-		else if (scale == 't' || scale == 'T') result *= 1e12;  // tera
-		else if (scale == 'g' || scale == 'G') result *= 1e9;   // giga
-		else if (scale == 'M') result *= 1e6;  // mega
-		else if (scale == 'k' || scale == 'K') result *= 1e3;  // kilo
-		else if (scale == 'm') result *= 1e-3; // milli
-		else if (scale == 'u' || scale == 'U') result *= 1e-6;  // micro
-		else if (scale == 'n' || scale == 'N') result *= 1e-9;  // nano
-		else if (scale == 'p') result *= 1e-12;  // pico
-		else if (scale == 'f' || scale == 'F') result *= 1e-15; // femto
-		else if (scale == 'a' || scale == 'A') result *= 1e-18; // atto
-		return result;
-	    }
-
-	    return (default_v || NaN);
-	}
-
-	/*
-	// convert string argument to a number, accepting usual notations
-	// (hex, octal, binary, decimal, floating point) plus engineering
-	// scale factors (eg, 1k = 1000.0 = 1e3).
-	// return default if argument couldn't be interpreted as a number
-	function xparse_number(s,default_v) {
-	    var slen = s.length;
-	    var multiplier = 1;
-	    var result = 0;
-	    var index = 0;
-
-	    // skip leading whitespace
-	    while (index < slen && s.charAt(index) <= ' ') index += 1;
-	    if (index == slen) return default_v;
-
-	    // check for leading sign
-	    if (s.charAt(index) == '-') {
-		multiplier = -1;
-		index += 1;
-	    } else if (s.charAt(index) == '+')
-		index += 1;
-	    var start = index;   // remember where digits start
-
-	    // if leading digit is 0, check for hex, octal or binary notation
-	    if (index >= slen) return default_v;
-	    else if (s.charAt(index) == '0') {
-		index += 1;
-		if (index >= slen) return 0;
-		if (s.charAt(index) == 'x' || s.charAt(index) == 'X') { // hex
-		    while (true) {
-			index += 1;
-			if (index >= slen) break;
-			if (s.charAt(index) >= '0' && s.charAt(index) <= '9')
-			    result = result*16 + ord(s.charAt(index)) - ord('0');
-			else if (s.charAt(index) >= 'A' && s.charAt(index) <= 'F')
-			    result = result*16 + ord(s.charAt(index)) - ord('A') + 10;
-			else if (s.charAt(index) >= 'a' && s.charAt(index) <= 'f')
-			    result = result*16 + ord(s.charAt(index)) - ord('a') + 10;
-			else break;
-		    }
-		    return result*multiplier;
-		} else if (s.charAt(index) == 'b' || s.charAt(index) == 'B') {  // binary
-		    while (true) {
-			index += 1;
-			if (index >= slen) break;
-			if (s.charAt(index) >= '0' && s.charAt(index) <= '1')
-			    result = result*2 + ord(s.charAt(index)) - ord('0');
-			else break;
-		    }
-		    return result*multiplier;
-		} else if (s.charAt(index) != '.') { // octal
-		    while (true) {
-			if (s.charAt(index) >= '0' && s.charAt(index) <= '7')
-			    result = result*8 + ord(s.charAt(index)) - ord('0');
-			else break;
-			index += 1;
-			if (index >= slen) break;
-		    }
-		    return result*multiplier;
-		}
-	    }
-    
-	    // read decimal integer or floating-point number
-	    while (true) {
-		if (s.charAt(index) >= '0' && s.charAt(index) <= '9')
-		    result = result*10 + ord(s.charAt(index)) - ord('0');
-		else break;
-		index += 1;
-		if (index >= slen) break;
-	    }
-
-	    // fractional part?
-	    if (index < slen && s.charAt(index) == '.') {
-		while (true) {
-		    index += 1;
-		    if (index >= slen) break;
-		    if (s.charAt(index) >= '0' && s.charAt(index) <= '9') {
-			result = result*10 + ord(s.charAt(index)) - ord('0');
-			multiplier *= 0.1;
-		    } else break;
-		}
-	    }
-
-	    // if we haven't seen any digits yet, don't check
-	    // for exponents or scale factors
-	    if (index == start) return default_v;
-
-	    // type of multiplier determines type of result:
-	    // multiplier is a float if we've seen digits past
-	    // a decimal point, otherwise it's an int or long.
-	    // Up to this point result is an int or long.
-	    result *= multiplier;
-
-	    // now check for exponent or engineering scale factor.  If there
-	    // is one, result will be a float.
-	    if (index < slen) {
-		var scale = s.charAt(index);
-		index += 1;
-		if (scale == 'e' || scale == 'E') {
-		    var exponent = 0;
-		    multiplier = 10.0;
-		    if (index < slen) {
-			if (s.charAt(index) == '+') index += 1;
-			else if (s.charAt(index) == '-') {
-			    index += 1;
-			    multiplier = 0.1;
-			}
-		    }
-		    while (index < slen) {
-			if (s.charAt(index) >= '0' && s.charAt(index) <= '9') {
-			    exponent = exponent*10 + ord(s.charAt(index)) - ord('0');
-			    index += 1;
-			} else break;
-		    }
-		    while (exponent > 0) {
-			exponent -= 1;
-			result *= multiplier;
-		    }
-		} else if (scale == 'P') result *= 1e15;   // peta
-		else if (scale == 't' || scale == 'T') result *= 1e12;  // tera
-		else if (scale == 'g' || scale == 'G') result *= 1e9;   // giga
-		else if (scale == 'M') result *= 1e6;  // mega
-		else if (scale == 'k' || scale == 'K') result *= 1e3;  // kilo
-		else if (scale == 'm') result *= 1e-3; // milli
-		else if (scale == 'u' || scale == 'U') result *= 1e-6;  // micro
-		else if (scale == 'n' || scale == 'N') result *= 1e-9;  // nano
-		else if (scale == 'p') result *= 1e-12;  // pico
-		else if (scale == 'f' || scale == 'F') result *= 1e-15; // femto
-		else if (scale == 'a' || scale == 'A') result *= 1e-18; // atto
-	    }
-
-	    // skip trailing whitespace, return default value if there
-	    // non-whitespace trailing characters.
-	    while (index < slen && s.charAt(index) <= ' ') index += 1;
-	    if (index == slen) return result;
-	    else return default_v;
-	}
-	*/
-
-	Circuit.prototype.parse_number = parse_number;  // make it easy to call from outside
-
-	// try to parse a number and generate an alert if there was a syntax error
-	function parse_number_alert(s) {
-	    var v = parse_number(s,undefined);
-
-	    if (v == undefined)
-		throw 'The string \"'+s+'\" could not be interpreted as an integer, a floating-point number or a number using engineering notation. Sorry, expressions are not allowed in this context.';
-
-	    return v;
-	}
-
-	Circuit.prototype.parse_number_alert = parse_number_alert;  // make it easy to call from outside
-
-	///////////////////////////////////////////////////////////////////////////////
-	//
-	//  Sources
-	//
-	///////////////////////////////////////////////////////////////////////////////
-
-	// argument is a string describing the source's value (see comments for details)
-	// source types: dc,step,square,triangle,sin,pulse,pwl,pwl_repeating
-
-	// returns an object with the following attributes:
-	//   fun -- name of source function
-	//   args -- list of argument values
-	//   value(t) -- compute source value at time t
-	//   inflection_point(t) -- compute time after t when a time point is needed
-	//   dc -- value at time 0
-	//   period -- repeat period for periodic sources (0 if not periodic)
-	
-	function parse_source(v) {
-	    // generic parser: parse v as either <value> or <fun>(<value>,...)
-	    var src = new Object();
-	    src.period = 0; // Default not periodic
-	    src.value = function(t) { return 0; }  // overridden below
-	    src.inflection_point = function(t) { return undefined; };  // may be overridden below
-
-	    // see if there's a "(" in the description
-	    var index = v.indexOf('(');
-	    var ch;
-	    if (index >= 0) {
-		src.fun = v.slice(0,index);   // function name is before the "("
-		src.args = [];	// we'll push argument values onto this list
-		var end = v.indexOf(')',index);
-		if (end == -1) end = v.length;
-
-		index += 1;     // start parsing right after "("
-		while (index < end) {
-		    // figure out where next argument value starts
-		    ch = v.charAt(index);
-		    if (ch <= ' ') { index++; continue; }
-		    // and where it ends
-		    var arg_end = v.indexOf(',',index);
-		    if (arg_end == -1) arg_end = end;
-		    // parse and save result in our list of arg values
-		    src.args.push(parse_number_alert(v.slice(index,arg_end)));
-		    index = arg_end + 1;
-		}
-	    } else {
-		src.fun = 'dc';
-		src.args = [parse_number_alert(v)];
-	    }
-
-	    // post-processing for constant sources
-	    // dc(v)
-	    if (src.fun == 'dc') {
-		var v = arg_value(src.args,0,0);
-		src.args = [v];
-		src.value = function(t) { return v; }  // closure
-	    }
-
-	    // post-processing for impulse sources
-	    // impulse(height,width)
-	    else if (src.fun == 'impulse') {
-		var h = arg_value(src.args,0,1);  // default height: 1
-		var w = Math.abs(arg_value(src.args,2,1e-9));  // default width: 1ns
-		src.args = [h,w];  // remember any defaulted values
-		pwl_source(src,[0,0,w/2,h,w,0],false);
-	    }
-
-	    // post-processing for step sources
-	    // step(v_init,v_plateau,t_delay,t_rise)
-	    else if (src.fun == 'step') {
-		var v1 = arg_value(src.args,0,0);  // default init value: 0V
-		var v2 = arg_value(src.args,1,1);  // default plateau value: 1V
-		var td = Math.max(0,arg_value(src.args,2,0));  // time step starts
-		var tr = Math.abs(arg_value(src.args,3,1e-9));  // default rise time: 1ns
-		src.args = [v1,v2,td,tr];  // remember any defaulted values
-		pwl_source(src,[td,v1,td+tr,v2],false);
-	    }
-
-	    // post-processing for square wave
-	    // square(v_init,v_plateau,freq,duty_cycle)
-	    else if (src.fun == 'square') {
-		var v1 = arg_value(src.args,0,0);  // default init value: 0V
-		var v2 = arg_value(src.args,1,1);  // default plateau value: 1V
-		var freq = Math.abs(arg_value(src.args,2,1));  // default frequency: 1Hz
-		var duty_cycle  = Math.min(100,Math.abs(arg_value(src.args,3,50)));  // default duty cycle: 0.5
-		src.args = [v1,v2,freq,duty_cycle];  // remember any defaulted values
-
-		var per = freq == 0 ? Infinity : 1/freq;
-		var t_change = 0.01 * per;   // rise and fall time
-		var t_pw = .01 * duty_cycle * 0.98 * per;  // fraction of cycle minus rise and fall time
-		pwl_source(src,[0,v1,t_change,v2,t_change+t_pw,
-				v2,t_change+t_pw+t_change,v1,per,v1],true);
-	    }
-
-	    // post-processing for triangle
-	    // triangle(v_init,v_plateua,t_period)
-	    else if (src.fun == 'triangle') {
-		var v1 = arg_value(src.args,0,0);  // default init value: 0V
-		var v2 = arg_value(src.args,1,1);  // default plateau value: 1V
-		var freq = Math.abs(arg_value(src.args,2,1));  // default frequency: 1s
-		src.args = [v1,v2,freq];  // remember any defaulted values
-
-		var per = freq == 0 ? Infinity : 1/freq;
-		pwl_source(src,[0,v1,per/2,v2,per,v1],true);
-	    }
-
-	    // post-processing for pwl and pwlr sources
-	    // pwl[r](t1,v1,t2,v2,...)
-	    else if (src.fun == 'pwl' || src.fun == 'pwl_repeating') {
-		pwl_source(src,src.args,src.fun == 'pwl_repeating');
-	    }
-
-	    // post-processing for pulsed sources
-	    // pulse(v_init,v_plateau,t_delay,t_rise,t_fall,t_width,t_period)
-	    else if (src.fun == 'pulse') {
-		var v1 = arg_value(src.args,0,0);  // default init value: 0V
-		var v2 = arg_value(src.args,1,1);  // default plateau value: 1V
-		var td = Math.max(0,arg_value(src.args,2,0));  // time pulse starts
-		var tr = Math.abs(arg_value(src.args,3,1e-9));  // default rise time: 1ns
-		var tf = Math.abs(arg_value(src.args,4,1e-9));  // default rise time: 1ns
-		var pw = Math.abs(arg_value(src.args,5,1e9));  // default pulse width: "infinite"
-		var per = Math.abs(arg_value(src.args,6,1e9));  // default period: "infinite"
-		src.args = [v1,v2,td,tr,tf,pw,per];
-
-		var t1 = td;       // time when v1 -> v2 transition starts
-		var t2 = t1 + tr;  // time when v1 -> v2 transition ends
-		var t3 = t2 + pw;  // time when v2 -> v1 transition starts
-		var t4 = t3 + tf;  // time when v2 -> v1 transition ends
-
-		pwl_source(src,[t1,v1, t2,v2, t3,v2, t4,v1, per,v1],true);
-	    }
-
-	    // post-processing for sinusoidal sources
-	    // sin(v_offset,v_amplitude,freq_hz,t_delay,phase_offset_degrees)
-	    else if (src.fun == 'sin') {
-		var voffset = arg_value(src.args,0,0);  // default offset voltage: 0V
-		var va = arg_value(src.args,1,1);  // default amplitude: -1V to 1V
-		var freq = Math.abs(arg_value(src.args,2,1));  // default frequency: 1Hz
-		src.period = 1.0/freq;
-
-		var td = Math.max(0,arg_value(src.args,3,0));  // default time delay: 0sec
-		var phase = arg_value(src.args,4,0);  // default phase offset: 0 degrees
-		src.args = [voffset,va,freq,td,phase];
-
-		phase /= 360.0;
-
-		// return value of source at time t
-		src.value = function(t) {  // closure
-		    if (t < td) return voffset + va*Math.sin(2*Math.PI*phase);
-		    else return voffset + va*Math.sin(2*Math.PI*(freq*(t - td) + phase));
-		}
-
-		// return time of next inflection point after time t
-		src.inflection_point = function(t) {	// closure
-		    if (t < td) return td;
-		    else return undefined;
-		}
-	    }
-	
-	    // object has all the necessary info to compute the source value and inflection points
-	    src.dc = src.value(0);   // DC value is value at time 0
-	    return src;
-	}
-
-	function pwl_source(src,tv_pairs,repeat) {
-	    var nvals = tv_pairs.length;
-	    if (repeat)
-		src.period = tv_pairs[nvals-2];  // Repeat period of source
-	    if (nvals % 2 == 1) npts -= 1;  // make sure it's even!
-
-	    if (nvals <= 2) {
-		// handle degenerate case
-		src.value = function(t) { return nvals == 2 ? tv_pairs[1] : 0; }
-		src.inflection_point = function(t) { return undefined; }
-	    } else {
-		src.value = function(t) { // closure
-		    if (repeat)
-			// make time periodic if values are to be repeated
-			t = Math.fmod(t,tv_pairs[nvals-2]);
-		    var last_t = tv_pairs[0];
-		    var last_v = tv_pairs[1];
-		    if (t > last_t) {
-			var next_t,next_v;
-			for (var i = 2; i < nvals; i += 2) {
-			    next_t = tv_pairs[i];
-			    next_v = tv_pairs[i+1];
-			    if (next_t > last_t)  // defend against bogus tv pairs
-				if (t < next_t)
-				    return last_v + (next_v - last_v)*(t - last_t)/(next_t - last_t);
-			    last_t = next_t;
-			    last_v = next_v;
-			}
-		    }
-		    return last_v;
-		}
-		src.inflection_point = function(t) {  // closure
-		    if (repeat)
-			// make time periodic if values are to be repeated
-			t = Math.fmod(t,tv_pairs[nvals-2]);
-		    for (var i = 0; i < nvals; i += 2) {
-			var next_t = tv_pairs[i];
-			if (t < next_t) return next_t;
-		    }
-		    return undefined;
-		}
-	    }
-	}
-
-	// helper function: return args[index] if present, else default_v
-	function arg_value(args,index,default_v) {
-	    if (index < args.length) {
-		var result = args[index];
-		if (result === undefined) result = default_v;
-		return result;
-	    } else return default_v;
-	}
-
-	// we need fmod in the Math library!
-	Math.fmod = function(numerator,denominator) {
-	    var quotient = Math.floor(numerator/denominator);
-	    return numerator - quotient*denominator;
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -2157,7 +1786,7 @@ cktsim = (function() {
         function VSource(npos,nneg,branch,v) {
 	    Device.call(this);
 	    
-	    this.src = parse_source(v);
+	    this.src = jade.parse_source(v);
 	    this.npos = npos;
 	    this.nneg = nneg;
 	    this.branch = branch;
@@ -2172,32 +1801,32 @@ cktsim = (function() {
 	    ckt.add_to_Gl(this.branch,this.nneg,-1.0);
 	    ckt.add_to_Gl(this.npos,this.branch,1.0);
 	    ckt.add_to_Gl(this.nneg,this.branch,-1.0);
-	}
+	};
 
 	// Source voltage added to b.
         VSource.prototype.load_dc = function(ckt,soln,rhs) {
 	    ckt.add_to_rhs(this.branch,this.src.dc,rhs);  
-	}
+	};
 
 	// Load time-dependent value for voltage source for tran
         VSource.prototype.load_tran = function(ckt,soln,rhs,time) {
 	    ckt.add_to_rhs(this.branch,this.src.value(time),rhs);  
-	}
+	};
 
 	// return time of next breakpoint for the device
 	VSource.prototype.breakpoint = function(time) {
 	    return this.src.inflection_point(time);
-	}
+	};
 
 	// small signal model ac value
         VSource.prototype.load_ac = function(ckt,rhs) {
 	    ckt.add_to_rhs(this.branch,1.0,rhs);
-	}
+	};
 
 	function ISource(npos,nneg,v) {
 	    Device.call(this);
 
-	    this.src = parse_source(v);
+	    this.src = jade.parse_source(v);
 	    this.npos = npos;
 	    this.nneg = nneg;
 	}
@@ -2206,7 +1835,7 @@ cktsim = (function() {
 
         ISource.prototype.load_linear = function(ckt) {
 	    // Current source is open when off, no linear contribution
-	}
+	};
 
 	// load linear system equations for dc analysis
 	ISource.prototype.load_dc = function(ckt,soln,rhs) {
@@ -2215,7 +1844,7 @@ cktsim = (function() {
 	    // MNA stamp for independent current source
 	    ckt.add_to_rhs(this.npos,-is,rhs);  // current flow into npos
 	    ckt.add_to_rhs(this.nneg,is,rhs);   // and out of nneg
-	}
+	};
 
 	// load linear system equations for tran analysis (just like DC)
         ISource.prototype.load_tran = function(ckt,soln,rhs,time) {
@@ -2224,19 +1853,19 @@ cktsim = (function() {
 	    // MNA stamp for independent current source
 	    ckt.add_to_rhs(this.npos,-is,rhs);  // current flow into npos
 	    ckt.add_to_rhs(this.nneg,is,rhs);   // and out of nneg
-	}
+	};
 
 	// return time of next breakpoint for the device
 	ISource.prototype.breakpoint = function(time) {
 	    return this.src.inflection_point(time);
-	}
+	};
 
 	// small signal model: open circuit
         ISource.prototype.load_ac = function(ckt,rhs) {
 	    // MNA stamp for independent current source
 	    ckt.add_to_rhs(this.npos,-1.0,rhs);  // current flow into npos
 	    ckt.add_to_rhs(this.nneg,1.0,rhs);   // and out of nneg
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -2256,17 +1885,17 @@ cktsim = (function() {
         Resistor.prototype.load_linear = function(ckt) {
 	    // MNA stamp for admittance g
 	    ckt.add_conductance_l(this.n1,this.n2,this.g);
-	}
+	};
 
 	Resistor.prototype.load_dc = function(ckt) {
 	    // Nothing to see here, move along.
-	}
+	};
 
 	Resistor.prototype.load_tran = function(ckt,soln) {
-	}
+	};
 
 	Resistor.prototype.load_ac = function(ckt) {
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -2291,7 +1920,7 @@ cktsim = (function() {
 
         Diode.prototype.load_linear = function(ckt) {
 	    // Diode is not linear, has no linear piece.
-	}
+	};
 
         Diode.prototype.load_dc = function(ckt,soln,rhs) {
 	    var vd = ckt.get_two_terminal(this.anode, this.cathode, soln);
@@ -2319,14 +1948,14 @@ cktsim = (function() {
 	    ckt.add_to_rhs(this.anode,-id,rhs);  // current flows into anode
 	    ckt.add_to_rhs(this.cathode,id,rhs);   // and out of cathode
 	    ckt.add_conductance(this.anode,this.cathode,gd);
-	}
+	};
 
         Diode.prototype.load_tran = function(ckt,soln,rhs,time) {
 	    this.load_dc(ckt,soln,rhs);
-	}
+	};
 
 	Diode.prototype.load_ac = function(ckt) {
-	}
+	};
 
 
 	///////////////////////////////////////////////////////////////////////////////
@@ -2347,16 +1976,16 @@ cktsim = (function() {
         Capacitor.prototype.load_linear = function(ckt) {
 	    // MNA stamp for capacitance matrix 
 	    ckt.add_capacitance(this.n1,this.n2,this.value);
-	}
+	};
 
 	Capacitor.prototype.load_dc = function(ckt,soln,rhs) {
-	}
+	};
 
 	Capacitor.prototype.load_ac = function(ckt) {
-	}
+	};
 
 	Capacitor.prototype.load_tran = function(ckt) {
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -2382,17 +2011,17 @@ cktsim = (function() {
 	    ckt.add_to_Gl(this.branch,this.n1,-1);
 	    ckt.add_to_Gl(this.branch,this.n2,1);
 	    ckt.add_to_C(this.branch,this.branch,this.value)
-	}
+	};
 
 	Inductor.prototype.load_dc = function(ckt,soln,rhs) {
 	    // Inductor is a short at dc, so is linear.
-	}
+	};
 
 	Inductor.prototype.load_ac = function(ckt) {
-	}
+	};
 
 	Inductor.prototype.load_tran = function(ckt) {
-	}
+	};
 
 
 
@@ -2425,17 +2054,17 @@ cktsim = (function() {
 	    ckt.add_to_Gl(this.branch,this.ng,-invA);
 	    ckt.add_to_Gl(this.branch,this.np,-1);
 	    ckt.add_to_Gl(this.branch,this.nn,1);
-	}
+	};
 
 	Opamp.prototype.load_dc = function(ckt,soln,rhs) {
 	    // Op-amp is linear.
-	}
+	};
 
 	Opamp.prototype.load_ac = function(ckt) {
-	}
+	};
 
 	Opamp.prototype.load_tran = function(ckt) {
-	}
+	};
 
 
 
@@ -2486,7 +2115,7 @@ cktsim = (function() {
 	    // gate capacitance
 	    L = this.L * 0.25;
 	    ckt.add_capacitance(this.g,ckt.gnd_node(),(6000e-18)*W*L);
-	}
+	};
 
         Fet.prototype.load_dc = function(ckt,soln,rhs) {
 	    var vds = this.type_sign * ckt.get_two_terminal(this.d, this.s, soln);
@@ -2520,14 +2149,14 @@ cktsim = (function() {
 		    ckt.add_to_G(s,g,-gmgs);
 		}
 	    }
-	}
+	};
 
 	Fet.prototype.load_tran = function(ckt,soln,rhs) {
 	    this.load_dc(ckt,soln,rhs);
-	}
+	};
 
 	Fet.prototype.load_ac = function(ckt) {
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -2645,10 +2274,10 @@ cktsim = (function() {
 
 	    var y_min = Infinity;
 	    var y_max = -Infinity;
-	    if (y_values != undefined && y_values.length > 0)
+	    if (y_values !== undefined && y_values.length > 0)
 		for (var plot = y_values.length - 1; plot >= 0; plot -= 1) {
 		    var values = y_values[plot][2];
-		    if (values == undefined) continue;  // no data points
+		    if (values === undefined) continue;  // no data points
 		    var offset = y_values[plot][1];
 		    var temp = array_min(values) + offset;
 		    if (temp < y_min) y_min = temp;
@@ -2660,10 +2289,10 @@ cktsim = (function() {
 
 	    var z_min = Infinity;
 	    var z_max = -Infinity;
-	    if (z_values != undefined && z_values.length > 0)
+	    if (z_values !== undefined && z_values.length > 0)
 		for (plot = z_values.length - 1; plot >= 0; plot -= 1) {
 		    var values = z_values[plot][2];
-		    if (values == undefined) continue;  // no data points
+		    if (values === undefined) continue;  // no data points
 		    var offset = z_values[plot][1];
 		    var temp = array_min(values) + offset;
 		    if (temp < z_min) z_min = temp;
@@ -2690,9 +2319,9 @@ cktsim = (function() {
 	    var y_values = canvas.y_values;
 	    var z_values = canvas.z_values;
 
-	    var left_margin = (y_values != undefined && y_values.length > 0) ? 55 : 25;
+	    var left_margin = (y_values !== undefined && y_values.length > 0) ? 55 : 25;
 	    var top_margin = 25;
-	    var right_margin = (z_values != undefined && z_values.length > 0) ? 55 : 25;
+	    var right_margin = (z_values !== undefined && z_values.length > 0) ? 55 : 25;
 	    var bottom_margin = 45;
 	    var tick_length = 5;
 
@@ -2751,7 +2380,7 @@ cktsim = (function() {
 	    }
 
 	    var y_min,y_max,y_scale;
-	    if (y_values != undefined && y_values.length > 0) {
+	    if (y_values !== undefined && y_values.length > 0) {
 		var y_limits = view_limits(canvas.y_min,canvas.y_max);
 		y_min = y_limits[0];
 		y_max = y_limits[1];
@@ -2792,10 +2421,10 @@ cktsim = (function() {
 		c.lineCap = 'round';
 		for (plot = y_values.length - 1; plot >= 0; plot -= 1) {
 		    var color = probe_colors_rgb[y_values[plot][0]];
-		    if (color == undefined) continue;  // no plot color (== x-axis)
+		    if (color === undefined) continue;  // no plot color (== x-axis)
 		    c.strokeStyle = color;
 		    var values = y_values[plot][2];
-		    if (values == undefined) continue;  // no data points
+		    if (values === undefined) continue;  // no data points
 		    var offset = y_values[plot][1];
 
 		    x = plot_x(x_values[0]);
@@ -2820,7 +2449,7 @@ cktsim = (function() {
 	    }
 
 	    var z_min,z_max,z_scale;
-	    if (z_values != undefined && z_values.length > 0) {
+	    if (z_values !== undefined && z_values.length > 0) {
 		var z_limits = view_limits(canvas.z_min,canvas.z_max);
 		z_min = z_limits[0];
 		z_max = z_limits[1];
@@ -2854,10 +2483,10 @@ cktsim = (function() {
 		c.lineWidth = 3;
 		for (plot = z_values.length - 1; plot >= 0; plot -= 1) {
 		    var color = probe_colors_rgb[z_values[plot][0]];
-		    if (color == undefined) continue;  // no plot color (== x-axis)
+		    if (color === undefined) continue;  // no plot color (== x-axis)
 		    c.strokeStyle = color;
 		    var values = z_values[plot][2];
-		    if (values == undefined) continue;  // no data points
+		    if (values === undefined) continue;  // no data points
 		    var offset = z_values[plot][1];
 		    
 		    x = plot_x(x_values[0]);
@@ -2887,7 +2516,7 @@ cktsim = (function() {
 	    c.textBaseline = 'bottom';
 	    c.fillText(canvas.x_legend,left_margin + pwidth/2,h - 5);
 
-	    if (y_values != undefined && y_values.length > 0) {
+	    if (y_values !== undefined && y_values.length > 0) {
 		c.textBaseline = 'top';
 		c.save();
 		c.translate(5 ,top_margin + pheight/2);
@@ -2896,7 +2525,7 @@ cktsim = (function() {
 		c.restore();
 	    }
 
-	    if (z_values != undefined && z_values.length > 0) {
+	    if (z_values !== undefined && z_values.length > 0) {
 		c.textBaseline = 'bottom';
 		c.save();
 		c.translate(w-5 ,top_margin + pheight/2);
@@ -2924,15 +2553,17 @@ cktsim = (function() {
 
 	function array_max(a) {
 	    max = -Infinity;
-	    for (var i = a.length - 1; i >= 0; i -= 1)
+	    for (var i = a.length - 1; i >= 0; i -= 1) {
 		if (a[i] > max) max = a[i];
+	    }
 	    return max;
 	}
 
 	function array_min(a) {
 	    min = Infinity;
-	    for (var i = a.length - 1; i >= 0; i -= 1)
+	    for (var i = a.length - 1; i >= 0; i -= 1) {
 		if (a[i] < min) min = a[i];
+	    }
 	    return min;
 	}
 
@@ -2964,16 +2595,16 @@ cktsim = (function() {
 	    var x1 = (index == 0) ? x_values[0] : x_values[index-1];
 	    var x2 = x_values[index];
 
-	    if (x2 != undefined) {
+	    if (x2 !== undefined) {
 		// for each plot, interpolate and output value at intersection with marker
 		c.textAlign = 'left';
 		var tx = graph.left_margin + left_margin;
 		var ty = graph.top_margin;
-		if (graph.y_values != undefined) {
+		if (graph.y_values !== undefined) {
 		    for (var plot = 0; plot < graph.y_values.length; plot += 1) {
 			var values = graph.y_values[plot][2];
 			var color = probe_colors_rgb[graph.y_values[plot][0]];
-			if (values == undefined || color == undefined) continue;  // no data points or x-axis
+			if (values === undefined || color === undefined) continue;  // no data points or x-axis
 		    
 			// interpolate signal value at graph_x using values[index-1] and values[index]
 			var y1 = (index == 0) ? values[0] : values[index-1];
@@ -2991,13 +2622,13 @@ cktsim = (function() {
 		}
 
 		c.textAlign = 'right';
-		if (graph.z_values != undefined) {
+		if (graph.z_values !== undefined) {
 		    var tx = graph.left_margin + graph.pwidth - left_margin;
 		    var ty = graph.top_margin;
 		    for (var plot = 0; plot < graph.z_values.length; plot += 1) {
 			var values = graph.z_values[plot][2];
 			var color = probe_colors_rgb[graph.z_values[plot][0]];
-			if (values == undefined || color == undefined) continue;  // no data points or x-axis
+			if (values === undefined || color === undefined) continue;  // no data points or x-axis
 		    
 			// interpolate signal value at graph_x using values[index-1] and values[index]
 			var z1 = (index == 0) ? values[0]: values[index-1];
@@ -3021,11 +2652,11 @@ cktsim = (function() {
 	    c.clearRect(0,0,graph.width,graph.height);
 	    c.drawImage(graph.bg_image,0,0);
 
-	    if (graph.cursor1_x != undefined) plot_cursor(c,graph,graph.cursor1_x,4);
-	    if (graph.cursor2_x != undefined) plot_cursor(c,graph,graph.cursor2_x,30);
+	    if (graph.cursor1_x !== undefined) plot_cursor(c,graph,graph.cursor1_x,4);
+	    if (graph.cursor2_x !== undefined) plot_cursor(c,graph,graph.cursor2_x,30);
 
 	    /*
-	    if (graph.cursor1_x != undefined) {
+	    if (graph.cursor1_x !== undefined) {
 		// draw dashed vertical marker that follows mouse
 		var x = graph.left_margin + graph.cursor1_x;
 		var end_y = graph.top_margin + graph.pheight + graph.tick_length;
@@ -3053,7 +2684,7 @@ cktsim = (function() {
 		var x1 = (index == 0) ? x_values[0] : x_values[index-1];
 		var x2 = x_values[index];
 
-		if (x2 != undefined) {
+		if (x2 !== undefined) {
 		    // for each plot, interpolate and output value at intersection with marker
 		    c.textAlign = 'left';
 		    var tx = graph.left_margin + 4;
@@ -3106,9 +2737,6 @@ cktsim = (function() {
 	///////////////////////////////////////////////////////////////////////////////
 	var module = {
 	    'Circuit': Circuit,
-	    'parse_number': parse_number,
-	    'parse_number_alert': parse_number_alert,
-	    'parse_source': parse_source,
 	}
 	return module;
     }());

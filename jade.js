@@ -26,7 +26,7 @@ $(document).ready(function () {
 	    });
     });
 
-jade = (function() {
+var jade = (function() {
 	var exports = {};
 
 	//////////////////////////////////////////////////////////////////////
@@ -50,39 +50,40 @@ jade = (function() {
 	Library.prototype.load = function(json) {
 	    // note that modules may have already been created because they've
 	    // been referenced as a component is some other library.
-	    for (m in json)
+	    for (var m in json) {
 		this.module(m).load(json[m]);
+	    }
 	    this.modified = false;  // newly loaded libraries are unmodified
-	}
+	};
 
 	// return specified Module, newly created if necessary
 	Library.prototype.module = function(name) {
 	    var module = this.modules[name];
-	    if (module == undefined) {
+	    if (module === undefined) {
 		module = new Module(name,this);
 		this.modules[name] = module;
 		this.set_modified(true);
 	    }
 	    return module;
-	}
+	};
 
 	// produce JSON representation of a library
 	Library.prototype.json = function() {
 	    // weed out empty modules
 	    var json = {};
-	    for (m in this.modules) {
+	    for (var m in this.modules) {
 		var module = this.modules[m].json();
 		if (module) json[m] = module;
 	    }
 	    return json;
-	}
+	};
 
 	Library.prototype.set_modified = function(which) {
 	    if (which != this.modified) {
 		this.modified = which;
-		// notify any editors
+		//if (which) console.log('library modified: '+this.name);
 	    }
-	}
+	};
 
 	// if necessary save library to server
 	Library.prototype.save = function() {
@@ -97,18 +98,21 @@ jade = (function() {
 		    },
 		    success: function() {
 			// clear modified status for library and its modules
-			for (m in this.modules)
+			for (var m in this.modules) {
 			    this.modules[m].set_modified(false);
+			}
 			lib.set_modified(false);
 		    }
 		};
 		$.ajax(args);
 	    }
-	}
+	};
 
 	// update server with any changes to loaded libraries
 	function save_libraries() {
-	    for (l in libraries) libraries[l].save();
+	    for (l in libraries) {
+		libraries[l].save();
+	    }
 	}
 
 	// return specified Module, newly created if necessary. Module names have
@@ -130,12 +134,12 @@ jade = (function() {
 		var lib = new Library(lname);
 		libraries[lname] = lib;
 
-		// get contents from the server using jsonp hack to avoid
-		// cross origin errors
+		// get contents from the server
 		var args = {
 		    async: false,   // hang until load completes
-		    url: 'libraries/'+lname,
+		    url: 'server.cgi',
 		    type: 'GET',
+		    data: {file: lname},
 		    dataType: 'json',
 		    error: function(jqXHR,textStatus,errorThrown) {
 			alert(errorThrown);
@@ -175,32 +179,34 @@ jade = (function() {
 	    // if we're already loaded, do callback now
 	    if (this.loaded) callback('load');
 	    else this.listeners.push(callback);
-	}
+	};
 
 	Module.prototype.set_modified = function(which) {
 	    if (this.modified != which) {
 		this.modifed = which;
 		if (which) this.library.set_modified(true);
+		//if (which) console.log('module modified: '+this.library.name+':'+this.name);
 	    }
-	}
+	};
 
 	Module.prototype.set_property = function(prop,v) {
 	    this.properties[prop] = v;
 	    this.set_modified(true);
-	}
+	};
 
 	Module.prototype.remove_property = function(prop) {
 	    if (prop in this.properties) {
 		delete this.properties[prop];
 		this.set_modified(true);
 	    }
-	}
+	};
 
 	// initialize module from JSON object
 	Module.prototype.load = function(json) {
 	    // load aspects
-	    for (a in json[0])
+	    for (var a in json[0]) {
 		this.aspects[a] = new Aspect(a,this,json[0][a]);
+	    }
 
 	    // load properties
 	    this.properties = json[1];
@@ -209,39 +215,46 @@ jade = (function() {
 	    this.set_modified(false);
 
 	    this.loaded = true;
-	    for (var i = this.listeners.length - 1; i >= 0; i -= 1)
+	    for (var i = this.listeners.length - 1; i >= 0; i -= 1) {
 		this.listeners[i]('load');
-	}
+	    }
+	};
+
+	Module.prototype.has_aspect = function(name) {
+	    if (name in this.aspects)
+		return !this.aspects[name].empty();
+	    return false;
+	};
 
 	// return specified aspect, newly created if necessary
 	Module.prototype.aspect = function(name) {
 	    var aspect = this.aspects[name];
-	    if (aspect == undefined) {
+	    if (aspect === undefined) {
 		aspect = new Aspect(name,this);
 		this.aspects[name] = aspect;
 		this.set_modified(true);
 	    }
 	    return aspect;
-	}
+	};
 
 	// produce JSON representation of a module, undefined if module is empty
 	Module.prototype.json = function() {
 	    // weed out empty aspects
 	    var aspects = undefined;
-	    for (a in this.aspects) {
+	    for (var a in this.aspects) {
 		var json = this.aspects[a].json();
 		if (json.length > 0) {
-		    if (aspects == undefined) aspects = {};
+		    if (aspects === undefined) aspects = {};
 		    aspects[a] = json;
 		}
 	    }
 
 	    // if module is empty, returned undefined
-	    if (aspects == undefined && Object.keys(this.properties).length == 0)
+	    if (aspects === undefined && Object.keys(this.properties).length == 0)
 		return undefined;
 
 	    return [aspects || {}, this.properties];
-	}
+	};
 
 	//////////////////////////////////////////////////////////////////////
 	//
@@ -275,32 +288,34 @@ jade = (function() {
 		c.add(this);
 	    }
 	    this.modified = false;
-	}
+	};
 
 	Aspect.prototype.set_modified = function(which) {
 	    if (which != this.modified) {
 		this.modified = which;
 		if (which && this.module) this.module.set_modified(which);
+		//if (which) console.log('aspect modified: '+this.name+' of '+this.module.library.name+':'+this.module.name);
 	    }
-	}
+	};
 
 	Aspect.prototype.json = function() {
 	    json = [];
-	    for (var i = 0; i < this.components.length; i += 1)
+	    for (var i = 0; i < this.components.length; i += 1) {
 		json.push(this.components[i].json());
+	    }
 	    return json;
-	}
+	};
 
 	Aspect.prototype.empty = function() {
 	    return this.components.length == 0;
-	}
+	};
 
 	Aspect.prototype.start_action = function() {
 	    this.change_list = [];	// start recording changes
-	}
+	};
 
 	Aspect.prototype.end_action = function() {
-	    if (this.change_list != undefined && this.change_list.length > 0) {
+	    if (this.change_list !== undefined && this.change_list.length > 0) {
 		this.clean_up_wires(true);   // canonicalize diagram's wires
 		this.set_modified(true);
 		this.current_action += 1;
@@ -312,82 +327,87 @@ jade = (function() {
 		this.actions.push(this.change_list);
 	    }
 	    this.change_list = undefined;  // stop recording changes
-	}
+	};
 
 	Aspect.prototype.add_change = function(change) {
-	    if (this.change_list != undefined)
+	    if (this.change_list !== undefined)
 		this.change_list.push(change);
-	}
+	};
 
 	Aspect.prototype.can_undo = function() {
 	    return this.current_action >= 0;
-	}
+	};
 
 	Aspect.prototype.undo = function() {
 	    if (this.current_action >= 0) {
 		var changes = this.actions[this.current_action];
 		this.current_action -= 1;
 		// undo changes in reverse order
-		for (var i = changes.length-1; i >= 0; i -= 1)
+		for (var i = changes.length-1; i >= 0; i -= 1) {
 		    changes[i](this,'undo');
+		}
 		this.clean_up_wires(false);  // canonicalize diagram's wires
 	    }
 
 	    this.set_modified(this.current_action == -1);
-	}
+	};
 
 	Aspect.prototype.can_redo = function() {
 	    return this.current_action + 1 < this.actions.length;
-	}
+	};
 
 	Aspect.prototype.redo = function() {
 	    if (this.current_action + 1 < this.actions.length) {
 		this.current_action += 1;
 		var changes = this.actions[this.current_action];
 		// redo changes in original order
-		for (var i = 0; i < changes.length; i += 1)
+		for (var i = 0; i < changes.length; i += 1) {
 		    changes[i](this,'redo');
+		}
 		this.clean_up_wires(false);  // canonicalize diagram's wires
 		this.changed = true;
 	    }
-	}
+	};
 
 	Aspect.prototype.add_component = function(new_c) {
 	    this.components.push(new_c);
-	}
+	};
 
 	Aspect.prototype.remove_component = function(c) {
 	    var index = this.components.indexOf(c);
 	    if (index != -1) {
 		this.components.splice(index,1);
 	    }
-	}
+	};
 
 	Aspect.prototype.map_over_components = function(f) {
-	    for (var i = this.components.length - 1; i >= 0; i -= 1)
+	    for (var i = this.components.length - 1; i >= 0; i -= 1) {
 		if (f(this.components[i],i)) return;
-	}
+	    }
+	};
 
 	Aspect.prototype.selections = function() {
-	    for (var i = this.components.length - 1; i >= 0; i -= 1)
+	    for (var i = this.components.length - 1; i >= 0; i -= 1) {
 		if (this.components[i].selected) return true;
+	    }
 	    return false;
-	}
+	};
 
 	// returns component if there's exactly one selected, else undefined
 	Aspect.prototype.selected_component = function() {
 	    var selected = undefined;
-	    for (var i = this.components.length - 1; i >= 0; i -= 1)
+	    for (var i = this.components.length - 1; i >= 0; i -= 1) {
 		if (this.components[i].selected) {
-		    if (selected == undefined) selected = this.components[i];
+		    if (selected === undefined) selected = this.components[i];
 		    else return undefined;
 		}
+	    }
 	    return selected;
-	}
+	};
 
 	Aspect.prototype.find_connections = function(cp) {
 	    return this.connection_points[cp.location];
-	}
+	};
 
 	// add connection point to list of connection points at that location
 	Aspect.prototype.add_connection_point = function(cp) {
@@ -400,7 +420,7 @@ jade = (function() {
 
 	    // return list of conincident connection points
 	    return cplist;
-	}
+	};
 
 	// remove connection point from the list points at the old location
 	Aspect.prototype.remove_connection_point = function(cp,old_location) {
@@ -416,20 +436,20 @@ jade = (function() {
 			delete this.connection_points[old_location];
 		}
 	    }
-	}
+	};
 
 	// connection point has changed location: remove, then add
 	Aspect.prototype.update_connection_point = function(cp,old_location) {
 	    this.remove_connection_point(cp,old_location);
 	    return this.add_connection_point(cp);
-	}
+	};
 
 	// add a wire to the diagram
 	Aspect.prototype.add_wire = function(x1,y1,x2,y2,rot) {
 	    var new_wire = make_component(['wire',[x1,y1,rot,x2-x1,y2-y1]]);
 	    new_wire.add(this);
 	    return new_wire;
-	}
+	};
 
 	Aspect.prototype.split_wire = function(w,cp) {
 	    // remove bisected wire
@@ -439,7 +459,7 @@ jade = (function() {
 	    this.add_wire(w.coords[0],w.coords[1],cp.x,cp.y,0);
 	    var far_end = w.far_end();
 	    this.add_wire(far_end[0],far_end[1],cp.x,cp.y,0);
-	}
+	};
 
 	// see if connection points of component c split any wires
 	Aspect.prototype.check_wires = function(c) {
@@ -454,7 +474,7 @@ jade = (function() {
 		    }
 		}
 	    }
-	}
+	};
 
 	// see if there are any existing connection points that bisect wire w
 	Aspect.prototype.check_connection_points = function(w) {
@@ -466,7 +486,7 @@ jade = (function() {
 		    return;
 		}
 	    }
-	}
+	};
 
 	// merge collinear wires sharing an end point.
 	Aspect.prototype.clean_up_wires = function() {
@@ -492,7 +512,7 @@ jade = (function() {
 
 	    // remove redundant wires
 	    while (this.remove_redundant_wires());
-	}
+	};
 
 	// elminate wires between the same end points.  Keep calling until it returns false.
 	Aspect.prototype.remove_redundant_wires = function() {
@@ -517,21 +537,22 @@ jade = (function() {
 		}
 	    }
 	    return false;
-	}
+	};
 
 	Aspect.prototype.selections = function() {
 	    var selections = false;
-	    for (var i = this.components.length - 1; i >= 0; i -= 1)
+	    for (var i = this.components.length - 1; i >= 0; i -= 1) {
 		if (this.components[i].selected) selections = true;
+	    }
 	    return selections;
-	}
+	};
 
 	Aspect.prototype.compute_bbox = function(initial_bbox,selected,unselected) {
 	    // compute bounding box for selection
-	    var min_x = (initial_bbox == undefined) ? Infinity : initial_bbox[0];  
-	    var max_x = (initial_bbox == undefined) ? -Infinity : initial_bbox[2];
-	    var min_y = (initial_bbox == undefined) ? Infinity : initial_bbox[1];
-	    var max_y = (initial_bbox == undefined) ? -Infinity : initial_bbox[3];
+	    var min_x = (initial_bbox === undefined) ? Infinity : initial_bbox[0];  
+	    var max_x = (initial_bbox === undefined) ? -Infinity : initial_bbox[2];
+	    var min_y = (initial_bbox === undefined) ? Infinity : initial_bbox[1];
+	    var max_y = (initial_bbox === undefined) ? -Infinity : initial_bbox[3];
 	    for (var i = this.components.length - 1; i >= 0; i -= 1) {
 		var component = this.components[i];
 		if (selected && !component.selected) continue;
@@ -544,15 +565,15 @@ jade = (function() {
 		max_y = Math.max(component.bbox[3],max_y);
 	    }
 	    return [min_x,min_y,max_x,max_y];
-	}
+	};
 
 	Aspect.prototype.unselected_bbox = function(initial_bbox) {
 	    return this.compute_bbox(initial_bbox,false,true);
-	}
+	};
 
 	Aspect.prototype.selected_bbox = function(initial_bbox) {
 	    return this.compute_bbox(initial_bbox,true,false);
-	}
+	};
 
 	Aspect.prototype.selected_grid = function() {
 	    var grid = 1;
@@ -561,48 +582,54 @@ jade = (function() {
 		if (c.selected) grid = Math.max(grid,c.required_grid);
 	    }
 	    return grid;
-	}
+	};
 
 	// label all the nodes in the circuit
 	Aspect.prototype.label_connection_points = function(prefix,port_map) {
 	    // start by clearing all the connection point labels
-	    for (var i = this.components.length - 1; i >=0; i -= 1)
+	    for (var i = this.components.length - 1; i >=0; i -= 1) {
 		this.components[i].clear_labels();
+	    }
 
 	    // components are in charge of labeling their unlabeled connections.
 	    // labels given to connection points will propagate to coincident connection
 	    // points and across Wires.
 
 	    // let special components like GND or named wires label their connection(s)
-	    for (var i = this.components.length - 1; i >=0; i -= 1)
+	    for (var i = this.components.length - 1; i >=0; i -= 1) {
 		this.components[i].add_default_labels(prefix,port_map);
+	    }
 
 	    // now have components generate labels for unlabeled connections
 	    this.next_label = 0;
-	    for (var i = this.components.length - 1; i >=0; i -= 1)
+	    for (var i = this.components.length - 1; i >=0; i -= 1) {
 		this.components[i].label_connections(prefix);
-	}
+	    }
+	};
 
 	// generate a new label
 	Aspect.prototype.get_next_label = function(prefix) {
 	    // generate next label in sequence
 	    this.next_label += 1;
 	    return prefix + this.next_label.toString();
-	}
+	};
 
 	// propagate label to coincident connection points
 	Aspect.prototype.propagate_label = function(label,location) {
 	    var cplist = this.connection_points[location];
-	    for (var i = cplist.length - 1; i >= 0; i -= 1)
+	    for (var i = cplist.length - 1; i >= 0; i -= 1) {
 		cplist[i].propagate_label(label);
-	}
+	    }
+	};
 
 	Aspect.prototype.ensure_component_names = function(prefix) {
+	    var i,c,name;
+
 	    // first find out what names have been assigned
 	    var cnames = {};  // keep track of names at this level
-	    for (var i = 0; i < this.components.length; i += 1) {
-		var c = this.components[i];
-		var name = c.name;
+	    for (i = 0; i < this.components.length; i += 1) {
+		c = this.components[i];
+		name = c.name;
 		if (name) {
 		    if (name in cnames)
 			throw "Duplicate component name: "+prefix+name;
@@ -611,22 +638,22 @@ jade = (function() {
 	    }
 
 	    // now create reasonable unique name for unnamed components that have name property
-	    for (var i = 0; i < this.components.length; i += 1) {
-		var c = this.components[i];
-		if (c.module.name == undefined) continue;  // filter out built-in components
-		var name = c.name;
-		if (name == '' || name == undefined) {
+	    for (i = 0; i < this.components.length; i += 1) {
+		c = this.components[i];
+		if (c.module.name === undefined) continue;  // filter out built-in components
+		name = c.name;
+		if (name == '' || name === undefined) {
 		    var counter = 1;
 		    while (true) {
 			name = c.module.name.toUpperCase() + '_' + counter.toString()
-			if (!(name in cnames)) break;
+			    if (!(name in cnames)) break;
 			counter += 1;
 		    }
 		    c.name = name;     // remember name assignment for next time
 		    cnames[name] = c;  // add to our list
 		}
 	    }
-	}
+	};
 
 	// mlist is a list of module names "lib:module" that are the leaves
 	// of the extraction tree.
@@ -642,10 +669,10 @@ jade = (function() {
 	    var netlist = [];
 	    for (var i = 0; i < this.components.length; i += 1) {
 		var n = this.components[i].netlist(mlist,prefix);
-		if (n != undefined) netlist.push.apply(netlist,n);
+		if (n !== undefined) netlist.push.apply(netlist,n);
 	    }
 	    return netlist;
-	}
+	};
 
 	////////////////////////////////////////////////////////////////////////////////
 	//
@@ -704,15 +731,15 @@ jade = (function() {
 
 	// result of composing two rotations: orient[old*8 + new]
 	var rotate = [
-	    0, 1, 2, 3, 4, 5, 6, 7,         // NORTH (identity)
-	    1, 2, 3, 0, 7, 4, 5, 6,         // EAST (rot270) rotcw
-	    2, 3, 0, 1, 6, 7, 4, 5,         // SOUTH (rot180)
-	    3, 0, 1, 2, 5, 6, 7, 4,         // WEST (rot90) rotccw
-  	    4, 5, 6, 7, 0, 1, 2, 3,         // RNORTH (negx) fliph
-	    5, 6, 7, 4, 3, 0, 1, 2,         // REAST (int-neg)
-	    6, 7, 4, 5, 2, 3, 0, 1,         // RSOUTH (negy) flipy
-	    7, 4, 5, 6, 1, 2, 3, 0          // RWEST (int-pos)
-	];
+		      0, 1, 2, 3, 4, 5, 6, 7,         // NORTH (identity)
+		      1, 2, 3, 0, 7, 4, 5, 6,         // EAST (rot270) rotcw
+		      2, 3, 0, 1, 6, 7, 4, 5,         // SOUTH (rot180)
+		      3, 0, 1, 2, 5, 6, 7, 4,         // WEST (rot90) rotccw
+		      4, 5, 6, 7, 0, 1, 2, 3,         // RNORTH (negx) fliph
+		      5, 6, 7, 4, 3, 0, 1, 2,         // REAST (int-neg)
+		      6, 7, 4, 5, 2, 3, 0, 1,         // RSOUTH (negy) flipy
+		      7, 4, 5, 6, 1, 2, 3, 0          // RWEST (int-pos)
+		      ];
 
 	//////////////////////////////////////////////////////////////////////
 	//
@@ -755,11 +782,11 @@ jade = (function() {
 	    var props = {};
 	    for (var p in this.properties) {
 		var v = this.properties[p];
-		if (v != undefined && v != '' && (!remove_default_values || v != this.module.properties[p].value))
+		if (v !== undefined && v != '' && (!remove_default_values || v != this.module.properties[p].value))
 		    props[p] = v;
 	    }
 	    return props;
-	}
+	};
 
 	Component.prototype.load = function(json) {
 	    this.type = json[0];
@@ -772,14 +799,15 @@ jade = (function() {
 	    this.module.add_listener(function() {
 		    Component.prototype.compute_bbox.call(component);
 		});
-	}
+	};
 
 	Component.prototype.default_properties = function() {
 	    // update properties from module's default values
-	    for (p in this.module.properties)
+	    for (p in this.module.properties) {
 		if (!(p in this.properties))
 		    this.properties[p] = this.module.properties[p].value || '';
-	}
+	    }
+	};
 
 	Component.prototype.compute_bbox = function() {
 	    // update properties from module's default values
@@ -787,7 +815,7 @@ jade = (function() {
 	    this.name = this.properties.name;  // used when extracting netlists
 
 	    this.icon = this.module.aspect(Icon.prototype.editor_name);
-	    if (this.icon == undefined) return;
+	    if (this.icon === undefined) return;
 
 	    // look for terminals in the icon and add appropriate connection
 	    // points for this instance
@@ -799,12 +827,12 @@ jade = (function() {
 
 	    this.bounding_box = this.icon.compute_bbox();
 	    this.update_coords();
-	}
+	};
 
 	// default: no terminal coords to provide!
 	Component.prototype.terminal_coords = function() {
 	    return undefined;
-	}
+	};
 
 	Component.prototype.json = function() {
 	    var p = this.clone_properties(true);
@@ -812,22 +840,22 @@ jade = (function() {
 		return [this.type,this.coords.slice(0),p];
 	    else
 		return [this.type,this.coords.slice(0)];
-	}
+	};
 
 	Component.prototype.clone = function(x,y) {
 	    var c = make_component(this.json());
 	    c.coords[0] = x;   // override x and y
 	    c.coords[1] = y;
 	    return c;
-	}
+	};
 
 	Component.prototype.set_select = function(which) {
 	    this.selected = which;
-	}
+	};
 
 	Component.prototype.add_connection = function(offset_x,offset_y,name) {
 	    this.connections.push(new ConnectionPoint(this,offset_x,offset_y,name));
-	}
+	};
 
 	Component.prototype.update_coords = function() {
 	    var x = this.coords[0];
@@ -842,14 +870,15 @@ jade = (function() {
 	    canonicalize(this.bbox);
 
 	    // update connections
-	    for (var i = this.connections.length - 1; i >= 0; i -= 1)
+	    for (var i = this.connections.length - 1; i >= 0; i -= 1) {
 		this.connections[i].update_location();
-	}
+	    }
+	};
 
 	Component.prototype.inside = function(x,y,rect) {
-	    if (rect == undefined) rect = this.bbox;
+	    if (rect === undefined) rect = this.bbox;
 	    return between(x,rect[0],rect[2]) && between(y,rect[1],rect[3]);
-	}
+	};
 
 	// rotate component relative to specified center of rotation
 	Component.prototype.rotate = function(rotation,cx,cy) {
@@ -885,21 +914,21 @@ jade = (function() {
 		    }
 		    component.update_coords();
 		});
-	}
+	};
 
 	Component.prototype.move_begin = function() {
 	    // remember where we started this move
 	    this.move_x = this.coords[0];
 	    this.move_y = this.coords[1];
 	    this.move_rotation = this.coords[2];
-	}
+	};
 
 	Component.prototype.move = function(dx,dy) {
 	    // update coordinates
 	    this.coords[0] += dx;
 	    this.coords[1] += dy;
 	    this.update_coords();
-	}
+	};
     
 	Component.prototype.move_end = function() {
 	    var dx = this.coords[0] - this.move_x;
@@ -915,7 +944,7 @@ jade = (function() {
 		    });
 		this.aspect.check_wires(this);
 	    }
-	}
+	};
 
 	Component.prototype.add = function(aspect) {
 	    this.aspect = aspect;   // we now belong to a diagram!
@@ -928,7 +957,7 @@ jade = (function() {
 		    if (action == 'undo') component.remove();
 		    else component.add(diagram);
 		});
-	}
+	};
 
 	Component.prototype.remove = function() {
 	    // remove connection points from diagram
@@ -946,27 +975,27 @@ jade = (function() {
 		    if (action == 'undo') component.add(diagram);
 		    else component.remove();
 		});
-	}
+	};
 
 	Component.prototype.transform_x = function(x,y) {
 	    return transform_x(this.coords[2],x,y);
-	}
+	};
 
 	Component.prototype.transform_y = function(x,y) {
 	    return transform_y(this.coords[2],x,y);
-	}
+	};
 
 	Component.prototype.moveTo = function(diagram,x,y) {
 	    var nx = this.transform_x(x,y) + this.coords[0];
 	    var ny = this.transform_y(x,y) + this.coords[1];
 	    diagram.moveTo(nx,ny);
-	}
+	};
 
 	Component.prototype.lineTo = function(diagram,x,y) {
 	    var nx = this.transform_x(x,y) + this.coords[0];
 	    var ny = this.transform_y(x,y) + this.coords[1];
 	    diagram.lineTo(nx,ny);
-	}
+	};
 
 	var colors_rgb = {
 	    'red': 'rgb(255,64,64)',
@@ -980,34 +1009,34 @@ jade = (function() {
 
 	Component.prototype.draw_line = function(diagram,x1,y1,x2,y2,width) {
 	    diagram.c.strokeStyle = this.selected ? diagram.selected_style :
-	                           this.type == 'wire' ? diagram.normal_style :
-	                           (colors_rgb[this.properties.color] || diagram.component_style);
+	    this.type == 'wire' ? diagram.normal_style :
+	    (colors_rgb[this.properties.color] || diagram.component_style);
 	    var nx1 = this.transform_x(x1,y1) + this.coords[0];
 	    var ny1 = this.transform_y(x1,y1) + this.coords[1];
 	    var nx2 = this.transform_x(x2,y2) + this.coords[0];
 	    var ny2 = this.transform_y(x2,y2) + this.coords[1];
 	    diagram.draw_line(nx1,ny1,nx2,ny2,width || 1);
-	}
+	};
 
 	Component.prototype.draw_circle = function(diagram,x,y,radius,filled) {
 	    if (filled)
 		diagram.c.fillStyle = this.selected ? diagram.selected_style :
-                                     diagram.normal_style;
+		    diagram.normal_style;
 	    else
 		diagram.c.strokeStyle = this.selected ? diagram.selected_style :
-		                       this.type == 'wire' ? diagram.normal_style :
-	                               (colors_rgb[this.properties.color] || diagram.component_style);
+		    this.type == 'wire' ? diagram.normal_style :
+		    (colors_rgb[this.properties.color] || diagram.component_style);
 	    var nx = this.transform_x(x,y) + this.coords[0];
 	    var ny = this.transform_y(x,y) + this.coords[1];
 
 	    diagram.draw_arc(nx,ny,radius,0,2*Math.PI,false,1,filled);
-	}
+	};
 
 	// draw arc from [x1,y1] to [x2,y2] passing through [x3,y3]
 	Component.prototype.draw_arc = function(diagram,x1,y1,x2,y2,x3,y3) {
 	    diagram.c.strokeStyle = this.selected ? diagram.selected_style :
-                                   this.type == 'wire' ? diagram.normal_style :
-	                           (colors_rgb[this.properties.color] || diagram.component_style);
+	    this.type == 'wire' ? diagram.normal_style :
+	    (colors_rgb[this.properties.color] || diagram.component_style);
 
 	    // transform coords, make second two points relative to x,y
 	    var x = this.transform_x(x1,y1) + this.coords[0];
@@ -1045,65 +1074,65 @@ jade = (function() {
 	    var ccw = (angle2 > angle1);
 
 	    diagram.draw_arc(cx+x,cy+y,r,start_angle,end_angle,ccw,1,false);
-	}
+	};
 
 	// result of rotating an alignment [rot*9 + align]
 	var aOrient = [
-		   0, 1, 2, 3, 4, 5, 6, 7, 8,		// NORTH (identity)
-		   2, 5, 8, 1, 4, 7, 0, 3, 6, 		// EAST (rot270)
-		   8, 7, 6, 5, 4, 3, 2, 1, 0,		// SOUTH (rot180)
-		   6, 3, 0, 7, 4, 1, 8, 5, 3,		// WEST (rot90)
-		   2, 1, 0, 5, 4, 3, 8, 7, 6,		// RNORTH (negy)
-		   8, 5, 2, 7, 4, 1, 6, 3, 0, 		// REAST (int-neg)
-		   6, 7, 8, 3, 4, 5, 0, 1, 2,		// RSOUTH (negx)
-		   0, 3, 6, 1, 4, 7, 2, 5, 8		// RWEST (int-pos)
-		   ];
+		       0, 1, 2, 3, 4, 5, 6, 7, 8,		// NORTH (identity)
+		       2, 5, 8, 1, 4, 7, 0, 3, 6, 		// EAST (rot270)
+		       8, 7, 6, 5, 4, 3, 2, 1, 0,		// SOUTH (rot180)
+		       6, 3, 0, 7, 4, 1, 8, 5, 3,		// WEST (rot90)
+		       2, 1, 0, 5, 4, 3, 8, 7, 6,		// RNORTH (negy)
+		       8, 5, 2, 7, 4, 1, 6, 3, 0, 		// REAST (int-neg)
+		       6, 7, 8, 3, 4, 5, 0, 1, 2,		// RSOUTH (negx)
+		       0, 3, 6, 1, 4, 7, 2, 5, 8		// RWEST (int-pos)
+		       ];
 
 	var textAlign = [
-		     'left', 'center', 'right',
-		     'left', 'center', 'right',
-		     'left', 'center', 'right'
-		     ];
+			 'left', 'center', 'right',
+			 'left', 'center', 'right',
+			 'left', 'center', 'right'
+			 ];
 
 	var textBaseline = [
-			'top', 'top', 'top',
-			'middle', 'middle', 'middle',
-			'bottom', 'bottom', 'bottom'
-			];
+			    'top', 'top', 'top',
+			    'middle', 'middle', 'middle',
+			    'bottom', 'bottom', 'bottom'
+			    ];
 
 	Component.prototype.draw_text = function(diagram,text,x,y,alignment,font,fill) {
 	    var a = aOrient[this.coords[2]*9 + alignment];
 	    diagram.c.textAlign = textAlign[a];
 	    diagram.c.textBaseline = textBaseline[a];
-	    if (fill == undefined)
+	    if (fill === undefined)
 		diagram.c.fillStyle = this.selected ? diagram.selected_style :
-		                      (colors_rgb[this.properties.color] || diagram.component_style);
+		    (colors_rgb[this.properties.color] || diagram.component_style);
 	    else
 		diagram.c.fillStyle = fill;
 	    diagram.draw_text(text,
 			      this.transform_x(x,y) + this.coords[0],
 			      this.transform_y(x,y) + this.coords[1],
 			      font);
-	}
+	};
 
 	Component.prototype.draw_text_important = function(diagram,text,x,y,alignment,font,fill) {
 	    var a = aOrient[this.coords[2]*9 + alignment];
 	    diagram.c.textAlign = textAlign[a];
 	    diagram.c.textBaseline = textBaseline[a];
-	    if (fill == undefined)
+	    if (fill === undefined)
 		diagram.c.fillStyle = this.selected ? diagram.selected_style :
-                                     diagram.normal_style;
+		    diagram.normal_style;
 	    else
 		diagram.c.fillStyle = fill;
 	    diagram.draw_text_important(text,
 					this.transform_x(x,y) + this.coords[0],
 					this.transform_y(x,y) + this.coords[1],
 					font);
-	}
+	};
 
 	Component.prototype.draw = function(diagram) {
 	    // see if icon has been defined recently...
-	    if (this.icon == undefined) this.compute_bbox();
+	    if (this.icon === undefined) this.compute_bbox();
 
 	    if (this.icon && !this.icon.empty()) {
 		var component = this;  // for closure
@@ -1111,12 +1140,12 @@ jade = (function() {
 			c.draw_icon(component,diagram);
 		    });
 	    } else this.draw_text_important(diagram,this.type,0,0,4,diagram.annotation_font);
-	}
+	};
 
 	// does mouse click fall on this component?
 	Component.prototype.near = function(x,y) {
 	    return this.inside(x,y);
-	}
+	};
 
 	Component.prototype.select = function(x,y,shiftKey) {
 	    this.was_previously_selected = this.selected;
@@ -1124,27 +1153,27 @@ jade = (function() {
 		this.set_select(shiftKey ? !this.selected : true);
 		return true;
 	    } else return false;
-	}
+	};
 
 	Component.prototype.select_rect = function(s) {
 	    if (intersect(this.bbox,s))
 		this.set_select(true);
-	}
+	};
 
 	// default: do nothing
 	Component.prototype.bisect = function(c) {
-	}
+	};
 
 	// clear the labels on all connections
 	Component.prototype.clear_labels = function() {
 	    for (var i = this.connections.length - 1; i >=0; i -= 1) {
 		this.connections[i].clear_label();
 	    }
-	}
+	};
 
 	// default action: don't propagate label
 	Component.prototype.propagate_label = function(label) {
-	}
+	};
 
 	// component should generate labels for all unlabeled connections
 	Component.prototype.label_connections = function(prefix) {
@@ -1154,12 +1183,13 @@ jade = (function() {
 		    // generate label of appropriate length
 		    var len = cp.nlist.length;
 		    var label = [];
-		    for (var i = 0; i < len; i += 1)
+		    for (var i = 0; i < len; i += 1) {
 			label.push(this.aspect.get_next_label(prefix));
+		    }
 		    cp.propagate_label(label);
 		}
 	    }
-	}
+	};
 
 	// give components a chance to generate a label for their connection(s).
 	// valid for any component with a "global_signal" or "signal" property
@@ -1186,9 +1216,10 @@ jade = (function() {
 	    // now actually propagate label to connections (we're expecting only
 	    // only one connection for all but wires which will have two).
 	    if (nlist.length > 0)
-		for (i = 0; i < this.connections.length; i += 1)
+		for (i = 0; i < this.connections.length; i += 1) {
 		    this.connections[i].propagate_label(nlist);
-	}
+		}
+	};
 
 	// netlist entry: ["type", {terminal:signal, ...}, {property: value, ...}]
         Component.prototype.netlist = function(mlist,prefix) {
@@ -1202,7 +1233,7 @@ jade = (function() {
 		var expected = c.nlist.length;
 		if ((got % expected) != 0) {
 		    throw "Number of connections for terminal "+c.name+"of "+this.prefix+this.properties.name+" not a multiple of "+expected.toString()
-		}
+			}
 
 		// infer number of instances and remember the max we find.
 		// we'll replicate connections if necessary during the
@@ -1236,24 +1267,25 @@ jade = (function() {
 		    continue;
 		}
 
-		var sch = this.module.aspect(Schematic.prototype.editor_name);
-		if (sch.empty()) {
-		    // if no schematic, complain
-		    throw "No schematic for "+prefix+this.properties.name+" an instance of "+this.type;
-		} else {
+		if (this.module.has_aspect(Schematic.prototype.editor_name)) {
+		    var sch = this.module.aspect(Schematic.prototype.editor_name);
 		    // extract component's schematic, add to our netlist
 		    var p = prefix + this.name;
 		    if (ninstances > 1) p += '[' + i.toString() + ']';
 		    p += '.';   // hierarchical name separator
 		    var result = sch.netlist(mlist,p,port_map);
 		    netlist.push.apply(netlist,result);
+		} else {
+		    // if no schematic, complain
+		    throw "No schematic for "+prefix+this.properties.name+" an instance of "+this.type;
 		}
+
 	    }
 	    return netlist;
-	}
+	};
 
 	Component.prototype.update_properties = function(new_properties) {
-	    if (new_properties != undefined) {
+	    if (new_properties !== undefined) {
 		var old_properties = this.clone_properties(false);
 		this.properties = new_properties;
 
@@ -1263,7 +1295,7 @@ jade = (function() {
 			else component.properties = new_properties;
 		    });
 	    }
-	}
+	};
 
 	Component.prototype.edit_properties = function(diagram,x,y,callback) {
 	    if (this.near(x,y) && Object.keys(this.properties).length > 0) {
@@ -1308,7 +1340,7 @@ jade = (function() {
 		    });
 		return true;
 	    } else return false;
-	}
+	};
 
 	////////////////////////////////////////////////////////////////////////////////
 	//
@@ -1332,18 +1364,18 @@ jade = (function() {
 
 	ConnectionPoint.prototype.clear_label = function() {
 	    this.label = undefined;
-	}
+	};
 
 	// return number of connection points coincidient with this one
 	ConnectionPoint.prototype.nconnections = function() {
 	    var cplist = this.parent.aspect.connection_points[this.location];
 	    return cplist.length;
-	}
+	};
 
 	ConnectionPoint.prototype.propagate_label = function(label) {
 	    // should we check if existing label is the same?  it should be...
 
-	    if (this.label === undefined) {
+	    if (this.label ==== undefined) {
 		// label this connection point
 		this.label = label;
 
@@ -1355,7 +1387,7 @@ jade = (function() {
 	    } else if (!signal_equals(this.label,label))
 		// signal an error while generating netlist
 		throw "Node has two conflicting sets of labels: ["+this.label+"], ["+label+"]";
-	}
+	};
 
 	ConnectionPoint.prototype.update_location = function() {
 	    // update location string which we use as a key to find coincident connection points
@@ -1370,24 +1402,24 @@ jade = (function() {
 	    // add ourselves to the connection list for the new location
 	    if (this.parent.aspect) 
 		this.parent.aspect.update_connection_point(this,old_location);
-	}
+	};
 
 	ConnectionPoint.prototype.coincident = function(x,y) {
 	    return this.x==x && this.y==y;
-	}
+	};
 
 	ConnectionPoint.prototype.draw = function(diagram,n) {
 	    if (n != 2)
 		this.parent.draw_circle(diagram,this.offset_x,this.offset_y,
 					connection_point_radius,n > 2);
-	}
+	};
 
 	ConnectionPoint.prototype.draw_x = function(diagram) {
 	    this.parent.draw_line(diagram,this.offset_x-2,this.offset_y-2,
 				  this.offset_x+2,this.offset_y+2,diagram.grid_style);
 	    this.parent.draw_line(diagram,this.offset_x+2,this.offset_y-2,
 				  this.offset_x-2,this.offset_y+2,diagram.grid_style);
-	}
+	};
 
 	// see if three connection points are collinear
 	function collinear(p1,p2,p3) {
@@ -1461,25 +1493,25 @@ jade = (function() {
 		alert ("Error extracting netlist:\n\n"+e);
 		return [];
 	    }
-	}
+	};
 
 	// fetch attributes from the tag that created us
 	Diagram.prototype.getAttribute = function(attr) {
 	    return undefined;
-	}
+	};
 
 	Diagram.prototype.set_aspect = function(aspect) {
 	    this.aspect = aspect;
 	    this.redraw_background();  // compute bounding box
 	    this.zoomall();    // let's see the whole diagram
-	}
+	};
 
 	/*
-	Diagram.prototype.enable_tool = function(tname,which) {
-	    var toolbar = this.editor.toolbar;
+	  Diagram.prototype.enable_tool = function(tname,which) {
+	  var toolbar = this.editor.toolbar;
 
-	    if (toolbar) toolbar.enable_tool(tname,which);
-	}
+	  if (toolbar) toolbar.enable_tool(tname,which);
+	  };
 	*/
 
 	Diagram.prototype.unselect_all = function(which) {
@@ -1488,17 +1520,17 @@ jade = (function() {
 	    this.aspect.map_over_components(function(c,i) {
 		    if (i != which) c.set_select(false);
 		});
-	}
+	};
 
 	Diagram.prototype.remove_annotations = function() {
 	    this.unselect_all();
 	    this.redraw_background();
-	}
+	};
 
 	Diagram.prototype.add_annotation = function(callback) {
 	    this.annotations.push(callback);
 	    this.redraw();
-	}
+	};
 
 	Diagram.prototype.drag_begin = function() {
 	    // let components know they're about to move
@@ -1515,7 +1547,7 @@ jade = (function() {
 	    this.drag_x = this.cursor_x;
 	    this.drag_y = this.cursor_y;
 	    this.dragging = true;
-	}
+	};
 
 	Diagram.prototype.drag_end = function() {
 	    // let components know they're done moving
@@ -1525,7 +1557,7 @@ jade = (function() {
 	    this.dragging = false;
 	    this.aspect.end_action();
 	    this.redraw_background();
-	}
+	};
 
 	Diagram.prototype.zoomin = function() {
 	    var nscale = this.scale * this.zoom_factor;
@@ -1537,7 +1569,7 @@ jade = (function() {
 		this.scale = nscale;
 		this.redraw_background();
 	    }
-	}
+	};
 
 	Diagram.prototype.zoomout = function() {
 	    var nscale = this.scale / this.zoom_factor;
@@ -1549,7 +1581,7 @@ jade = (function() {
 		this.scale = nscale;
 		this.redraw_background();
 	    }
-	}
+	};
 
 	Diagram.prototype.zoomall = function() {
 	    // w,h for diagram including a margin on all sides
@@ -1572,7 +1604,7 @@ jade = (function() {
 	    this.origin_y = (this.bbox[3] + this.bbox[1])/2 - this.canvas.clientHeight/(2*this.scale);
 
 	    this.redraw_background();
-	}
+	};
 
 	function diagram_undo(diagram) {
 	    diagram.aspect.undo();
@@ -1619,14 +1651,15 @@ jade = (function() {
 
 	function diagram_paste(diagram) {
 	    var clipboard = clipboards[diagram.editor.editor_name];
+	    var i,c;
 
 	    // compute left,top of bounding box for origins of
 	    // components in the clipboard
 	    var left = undefined;
 	    var top = undefined;
 	    var cursor_grid = 1;
-	    for (var i = clipboard.length - 1; i >= 0; i -= 1) {
-		var c = clipboard[i];
+	    for (i = clipboard.length - 1; i >= 0; i -= 1) {
+		c = clipboard[i];
 		left = left ? Math.min(left,c.coords[0]) : c.coords[0];
 		top = top ? Math.min(top,c.coords[1]) : c.coords[1];
 		cursor_grid = Math.max(cursor_grid,c.required_grid);
@@ -1642,8 +1675,8 @@ jade = (function() {
 	    // make clones of components on the clipboard, positioning
 	    // them relative to the cursor
 	    diagram.aspect.start_action();
-	    for (var i = clipboard.length - 1; i >= 0; i -= 1) {
-		var c = clipboard[i];
+	    for (i = clipboard.length - 1; i >= 0; i -= 1) {
+		c = clipboard[i];
 		var new_c = c.clone(diagram.cursor_x + (c.coords[0] - left),diagram.cursor_y + (c.coords[1] - top));
 		new_c.set_select(true);
 		new_c.add(diagram.aspect);
@@ -1658,14 +1691,14 @@ jade = (function() {
 	    this.cursor_grid = g;
 	    this.cursor_x = this.on_grid(this.aspect_x);
 	    this.cursor_y = this.on_grid(this.aspect_y);
-	}
+	};
 
 	// determine nearest grid point
 	Diagram.prototype.on_grid = function(v,grid) {
-	    if (grid == undefined) grid = this.cursor_grid;
+	    if (grid === undefined) grid = this.cursor_grid;
 	    if (v < 0) return Math.floor((-v+(grid>>1))/grid)*-grid;
 	    else return Math.floor((v+(grid>>1))/grid)*grid;
-	}
+	};
 
 	// rotate selection about center of its bounding box
 	Diagram.prototype.rotate = function(rotation) {
@@ -1700,7 +1733,7 @@ jade = (function() {
 		});
 	    this.aspect.end_action();
 	    this.redraw();
-	}
+	};
 
 	// flip selection horizontally
 	function diagram_fliph(diagram) {
@@ -1730,7 +1763,7 @@ jade = (function() {
 	    this.bg_image.width = w;
 	    this.bg_image.height = h;
 	    this.zoomall();
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -1757,12 +1790,15 @@ jade = (function() {
 		var last_x = first_x + this.canvas.clientWidth/this.scale;
 		var first_y = this.origin_y;
 		var last_y = first_y + this.canvas.clientHeight/this.scale;
+		var i;
 
-		for (var i = this.grid*Math.ceil(first_x/this.grid); i < last_x; i += this.grid)
+		for (i = this.grid*Math.ceil(first_x/this.grid); i < last_x; i += this.grid) {
 		    this.draw_line(i,first_y,i,last_y,0.1);
+		}
 
-		for (var i = this.grid*Math.ceil(first_y/this.grid); i < last_y; i += this.grid)
+		for (i = this.grid*Math.ceil(first_y/this.grid); i < last_y; i += this.grid) {
 		    this.draw_line(first_x,i,last_x,i,0.1);
+		}
 
 		// indicate origin
 		this.draw_arc(0,0,this.grid/2,0,2*Math.PI,false,0.2,false);
@@ -1778,7 +1814,7 @@ jade = (function() {
 		});
 
 	    this.redraw();   // background changed, redraw on screen
-	}
+	};
 
 	// redraw what user sees = static image + dynamic parts
 	Diagram.prototype.redraw = function() {
@@ -1802,16 +1838,16 @@ jade = (function() {
 	    var toolbar = this.editor.toolbar;
 	    if (toolbar) toolbar.enable_tools(this);
 	    /*
-	    this.enable_tool('undo',this.aspect.can_undo());
-	    this.enable_tool('redo',this.aspect.can_redo());
-	    var selections = this.aspect.selections();
-	    this.enable_tool('cut',selections);
-	    this.enable_tool('copy',selections);
-	    this.enable_tool('paste',clipboards[this.editor.editor_name].length > 0);
-	    this.enable_tool('fliph',selections);
-	    this.enable_tool('flipv',selections);
-	    this.enable_tool('rotcw',selections);
-	    this.enable_tool('rotccw',selections);
+	      this.enable_tool('undo',this.aspect.can_undo());
+	      this.enable_tool('redo',this.aspect.can_redo());
+	      var selections = this.aspect.selections();
+	      this.enable_tool('cut',selections);
+	      this.enable_tool('copy',selections);
+	      this.enable_tool('paste',clipboards[this.editor.editor_name].length > 0);
+	      this.enable_tool('fliph',selections);
+	      this.enable_tool('flipv',selections);
+	      this.enable_tool('rotcw',selections);
+	      this.enable_tool('rotccw',selections);
 	    */
 
 	    // connection points: draw one at each location
@@ -1902,15 +1938,15 @@ jade = (function() {
 	    c.fillStyle = this.background_style;
 	    c.fillRect(x+7,y+34,2,10);
 	    c.fillRect(x+3,y+39,10,2);
-	}
+	};
 
 	Diagram.prototype.moveTo = function(x,y) {
 	    this.c.moveTo((x - this.origin_x) * this.scale,(y - this.origin_y) * this.scale);
-	}
+	};
 
 	Diagram.prototype.lineTo = function(x,y) {
 	    this.c.lineTo((x - this.origin_x) * this.scale,(y - this.origin_y) * this.scale);
-	}
+	};
 
 	Diagram.prototype.draw_line = function(x1,y1,x2,y2,width) {
 	    var c = this.c;
@@ -1919,7 +1955,7 @@ jade = (function() {
 	    c.moveTo((x1 - this.origin_x) * this.scale,(y1 - this.origin_y) * this.scale);
 	    c.lineTo((x2 - this.origin_x) * this.scale,(y2 - this.origin_y) * this.scale);
 	    c.stroke();
-	}
+	};
 
 	Diagram.prototype.draw_arc = function(x,y,radius,start_radians,end_radians,anticlockwise,width,filled) {
 	    var c = this.c;
@@ -1929,7 +1965,7 @@ jade = (function() {
 		  start_radians,end_radians,anticlockwise);
 	    if (filled) c.fill();
 	    else c.stroke();
-	}
+	};
 
 	Diagram.prototype.draw_text = function(text,x,y,font) {
 	    var c = this.c;
@@ -1940,11 +1976,11 @@ jade = (function() {
 	    c.font = font.replace(/\d+/,s.toString());
 
 	    c.fillText(text,(x - this.origin_x) * this.scale,(y - this.origin_y) * this.scale);
-	}
+	};
 
 	Diagram.prototype.draw_text_important = function(text,x,y,font) {
 	    this.draw_text(text,x,y,font);
-	}
+	};
 
 	// convert event coordinates into
 	//   mouse_x,mouse_y = coords relative to upper left of canvas
@@ -1958,7 +1994,7 @@ jade = (function() {
 	    this.aspect_y = this.mouse_y/this.scale + this.origin_y;
 	    this.cursor_x = this.on_grid(this.aspect_x);
 	    this.cursor_y = this.on_grid(this.aspect_y);
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -1975,7 +2011,7 @@ jade = (function() {
 		// delete selected components
 		this.aspect.start_action();
 		this.aspect.map_over_components(function(c) {
-		    if (c.selected) c.remove();
+			if (c.selected) c.remove();
 		    });
 		this.aspect.end_action();
 		this.redraw_background();
@@ -2018,7 +2054,7 @@ jade = (function() {
 
 	    event.preventDefault();
 	    return false;
-	}
+	};
 
 	// handle events in pan/zoom control
 	Diagram.prototype.pan_zoom = function() {
@@ -2049,7 +2085,7 @@ jade = (function() {
 
 	    this.redraw_background();
 	    return true;
-	}
+	};
 
 	// handle the (possible) start of a selection
 	Diagram.prototype.start_select = function(shiftKey) {
@@ -2082,7 +2118,7 @@ jade = (function() {
 	    }
 
 	    this.redraw_background();
-	}
+	};
 
 	// handle dragging and selection rectangle
 	Diagram.prototype.mouse_move = function() {
@@ -2108,7 +2144,7 @@ jade = (function() {
     
 	    // just redraw dynamic components
 	    this.redraw();
-	}
+	};
 
 	// handle dragging and selection rectangle
 	Diagram.prototype.mouse_up = function(shiftKey) {
@@ -2138,13 +2174,13 @@ jade = (function() {
 		this.select_rect = undefined;
 		this.redraw_background();
 	    }
-	}
+	};
 
 	Diagram.prototype.message = function(message) {
 	    var status = this.editor.status;
 
 	    if (status) status.nodeValue = message;
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -2202,7 +2238,7 @@ jade = (function() {
 
 	    // put into an overlay window
 	    this.window(title,dialog);
-	}
+	};
 
 	// callback when user click "Cancel" in a dialog
 	function dialog_cancel(event) {
@@ -2266,7 +2302,7 @@ jade = (function() {
 	    input.type = type;
 	    input.size = size;
 	    input.className = 'property';  // make this easier to find later
-	    if (value == undefined) input.value = '';
+	    if (value === undefined) input.value = '';
 	    else input.value = value.toString();
 	    return input;
 	}
@@ -2274,7 +2310,7 @@ jade = (function() {
 
 	// build a select widget using the strings found in the options array
 	function build_select(options,selected,select) {
-	    if (select == undefined)
+	    if (select === undefined)
 		select = document.createElement('select');
 	    for (var i = 0; i < options.length; i += 1) {
 		var option = document.createElement('option');
@@ -2346,7 +2382,7 @@ jade = (function() {
 	    $(win).offset(coffset);
 
 	    bring_to_front(win,true);
-	}
+	};
 
 	// adjust zIndex of pop-up window so that it is in front
 	function bring_to_front(win,insert) {
@@ -2360,8 +2396,9 @@ jade = (function() {
 	    if (insert) wlist.push(win);
 
 	    // adjust all zIndex values
-	    for (i = 0; i < wlist.length; i += 1)
+	    for (i = 0; i < wlist.length; i += 1) {
 		wlist[i].style.zIndex = 100 + i;
+	    }
 	}
 
 	// close the window
@@ -2391,7 +2428,7 @@ jade = (function() {
     
 	    // in Chrome avoid selecting everything as we drag window
 	    win.saved_onselectstart = document.onselectstart;
-	    document.onselectstart = function(){ return false; };
+	    document.onselectstart = function(){ return false; };;
 
 	    // remember where mouse is so we can compute dx,dy during drag
 	    win.drag_x = event.pageX;
@@ -2485,9 +2522,9 @@ jade = (function() {
 
 	    // set up event processing
 	    $(tool)
-	      .mouseover(tool_enter)
-	      .mouseout(tool_leave)
-	      .click(tool_click);
+	    .mouseover(tool_enter)
+	    .mouseout(tool_leave)
+	    .click(tool_click);
 
 	    // add to toolbar
 	    tool.diagram = this.diagram;
@@ -2498,24 +2535,24 @@ jade = (function() {
 	    this.toolbar.appendChild(tool);
 
 	    return tool;
-	}
+	};
 
 	Toolbar.prototype.add_spacer = function() {
 	    var spacer = document.createElement('div');
 	    spacer.className = 'jade-tool-spacer';
 	    this.toolbar.appendChild(spacer);
-	}
+	};
 
 	/*
-	Toolbar.prototype.enable_tool = function(tname,which) {
-	    var tool = this.tools[tname];
+	  Toolbar.prototype.enable_tool = function(tname,which) {
+	  var tool = this.tools[tname];
 
-	    if (tool != undefined) {
-		tool.enabled = which;
-		$(tool).toggleClass('jade-tool-disabled',!which);
-		$(tool).toggleClass('jade-tool-enabled',which);
-	    }
-	}
+	  if (tool !== undefined) {
+	  tool.enabled = which;
+	  $(tool).toggleClass('jade-tool-disabled',!which);
+	  $(tool).toggleClass('jade-tool-enabled',which);
+	  }
+	  };
 	*/
 
 	Toolbar.prototype.enable_tools = function(diagram) {
@@ -2527,7 +2564,7 @@ jade = (function() {
 		$(tool).toggleClass('jade-tool-disabled',!which);
 		$(tool).toggleClass('jade-tool-enabled',which);
 	    }
-	}
+	};
 
 	// display tip when mouse is over tool
 	function tool_enter(event) {
@@ -2694,14 +2731,15 @@ jade = (function() {
 	    this.input_field.value = module.library.name + ':' + module.name;
 
 	    // tell each tab which module we're editing
-	    for (var e in this.tabs)
+	    for (var e in this.tabs) {
 		this.tabs[e][1].editor.set_aspect(module);
-	}
+	    }
+	};
 
 	// make a particular tab visible -- DOM class name does the heavy lifting
 	Jade.prototype.show = function(tab_name) {
 	    this.selected_tab = tab_name;
-	    for (tab in this.tabs) {
+	    for (var tab in this.tabs) {
 		var e = this.tabs[tab];   // [tab div, body div]
 		var selected = (tab == tab_name);
 		//e[0].className = 'jade-tab';
@@ -2709,7 +2747,7 @@ jade = (function() {
 		$(e[1]).toggleClass('jade-tab-body-active',selected);
 		if (selected) e[1].editor.show();
 	    }
-	}
+	};
 
 	Jade.prototype.resize = function(dx,dy) {
 	    var e = $(this.top_level);
@@ -2717,7 +2755,7 @@ jade = (function() {
 	    e.height(dy + e.height());
 
 	    // adjust size of all the tab bodies
-	    for (tab in this.tabs) {
+	    for (var tab in this.tabs) {
 		var ediv = this.tabs[tab][1];   // [tab div, body div]
 		e = $(ediv);
 		e.width(dx + e.width());
@@ -2725,7 +2763,7 @@ jade = (function() {
 		// inform associated editor about its new size
 		ediv.editor.resize(dx,dy,tab == this.selected_tab);
 	    }
-	}
+	};
 
 	exports.Jade = Jade;
 
@@ -2759,7 +2797,7 @@ jade = (function() {
 	var schematic_tools = [];
 	exports.schematic_tools = schematic_tools;
 
-	schematic_tools.push(['netlist','netlist','Extract netlist',extract_netlist]);
+	//schematic_tools.push(['netlist','netlist','Extract netlist',extract_netlist]);
 
 	var netlist;  // keep last extraction here
 	function extract_netlist(diagram) {
@@ -2767,7 +2805,9 @@ jade = (function() {
 	    var mlist = [];
 
 	    // analog extraction
-	    for (m in libraries.analog.modules) mlist.push('analog:'+m);
+	    for (var m in libraries.analog.modules) {
+		mlist.push('analog:'+m);
+	    }
 
 	    /*
 	    // gate extraction
@@ -2854,8 +2894,8 @@ jade = (function() {
 	    this.toolbar.add_tool('down',down_icon,'Down in the hierarchy: view selected included module',schematic_down,
 				  function(diagram){ 
 				      var selected = diagram.aspect.selected_component();
-				      if (selected != undefined) 
-					  return !selected.module.aspect(Schematic.prototype.editor_name).empty();
+				      if (selected !== undefined) 
+					  return selected.module.has_aspect(Schematic.prototype.editor_name);
 				      else return false;
 				  });
 	    this.toolbar.add_tool('up',up_icon,'Up in the hierarchy: return to including module',schematic_up,
@@ -2890,17 +2930,17 @@ jade = (function() {
 
 	    // adjust diagram to reflect new size
 	    if (selected) this.diagram.resize();
-	}
+	};
 
 	Schematic.prototype.show = function() {
 	    this.diagram.resize();
 	    this.parts_bin.show();
-	}
+	};
 
 	Schematic.prototype.set_aspect = function(module) {
 	    this.diagram.set_aspect(module.aspect(Schematic.prototype.editor_name));
 	    this.parts_bin.show();
-	}
+	};
 
 	Schematic.prototype.redraw = function(diagram) {
 	    // draw new wire
@@ -2909,11 +2949,11 @@ jade = (function() {
 		diagram.c.strokeStyle = diagram.selected_style;
 		diagram.draw_line(r[0],r[1],r[2],r[3],1);
 	    }
-	}
+	};
 
 	function schematic_down(diagram) {
 	    var selected = diagram.aspect.selected_component();
-	    if (selected != undefined && !selected.module.aspect(Schematic.prototype.editor_name).empty()) {
+	    if (selected !== undefined && selected.module.has_aspect(Schematic.prototype.editor_name)) {
 		var e = diagram.editor;
 		e.hierarchy_stack.push(diagram.aspect.module);  // remember what we were editing
 		e.jade.edit(selected.module);
@@ -2925,7 +2965,7 @@ jade = (function() {
 	    if (e.hierarchy_stack.length > 0)
 		// return to previous module
 		e.jade.edit(e.hierarchy_stack.pop())
-	}
+		    }
 
 	Schematic.prototype.editor_name = 'schematic';
 	editors.push(Schematic);
@@ -3105,13 +3145,13 @@ jade = (function() {
 
 	    // used in selection calculations
 	    this.len = Math.sqrt(dx*dx + dy*dy);
-	}
+	};
 
 	// return connection point at other end of wire from specified cp
 	Wire.prototype.other_end = function(cp) {
 	    if (this.connections[0].coincident(cp.x,cp.y)) return this.connections[1];
 	    else if (this.connections[1].coincident(cp.x,cp.y)) return this.connections[0];
-	}
+	};
 
 	Wire.prototype.far_end = function() {
 	    // one end of the wire is at x,y
@@ -3119,14 +3159,14 @@ jade = (function() {
 	    var x2 = this.transform_x(this.coords[3],this.coords[4]) + this.coords[0];
 	    var y2 = this.transform_y(this.coords[3],this.coords[4]) + this.coords[1];
 	    return [x2,y2];
-	}
+	};
 
 	Wire.prototype.move_end = function() {
 	    Component.prototype.move_end.call(this);
 
 	    // look for connection points that might bisect us
 	    this.aspect.check_connection_points(this);
-	}
+	};
 
 	Wire.prototype.add = function(aspect) {
 	    Component.prototype.add.call(this,aspect);
@@ -3136,7 +3176,7 @@ jade = (function() {
 
 	    // look for connection points that might bisect this wire
 	    this.aspect.check_connection_points(this);
-	}
+	};
 
 	Wire.prototype.remove = function() {
 	    // removing wires is a bit tricky since bisection and reassembly
@@ -3152,7 +3192,7 @@ jade = (function() {
 		    break;
 		}
 	    }
-	}
+	};
 
 	Wire.prototype.draw = function(diagram) {
 	    var dx = this.coords[3];
@@ -3162,7 +3202,7 @@ jade = (function() {
 
 	    // display signal name if there is one
 	    var name = this.properties.signal;
-	    if (name != undefined) {
+	    if (name !== undefined) {
 		// if wire has one unconnected end, but label there
 		var ncp0 = this.connections[0].nconnections() == 1;
 		var ncp1 = this.connections[1].nconnections() == 1;
@@ -3172,17 +3212,17 @@ jade = (function() {
 		    var align;
 		    var x = cp.offset_x;
 		    var y = cp.offset_y
-		    if (dx == 0 || Math.abs(dy/dx) > 1) {
-			// vertical-ish wire
-			var cy = (this.bounding_box[1] + this.bounding_box[3])/2;
-			if (cp.offset_y > cy) { align = 1; y += 3; }  // label at bottom end
-			else { align = 7; y -= 3; }  // label at top end
-		    } else {
-			// horiztonal-ish wire
-			var cx = (this.bounding_box[0] + this.bounding_box[2])/2;
-			if (cp.offset_x > cx) { align = 3; x += 3; }  // label at right end
-			else { align = 5; x -= 3; }  // label at left end
-		    }
+			if (dx == 0 || Math.abs(dy/dx) > 1) {
+			    // vertical-ish wire
+			    var cy = (this.bounding_box[1] + this.bounding_box[3])/2;
+			    if (cp.offset_y > cy) { align = 1; y += 3; }  // label at bottom end
+			    else { align = 7; y -= 3; }  // label at top end
+			} else {
+			    // horiztonal-ish wire
+			    var cx = (this.bounding_box[0] + this.bounding_box[2])/2;
+			    if (cp.offset_x > cx) { align = 3; x += 3; }  // label at right end
+			    else { align = 5; x -= 3; }  // label at left end
+			}
 		    this.draw_text(diagram,name,x,y,align,diagram.property_font);
 		} else {
 		    // draw label at center of wire
@@ -3194,14 +3234,14 @@ jade = (function() {
 		    this.draw_text(diagram,name,dx >> 1,dy >> 1,align,diagram.property_font);
 		}
 	    }
-	}
+	};
 
 	Wire.prototype.draw_icon = function(c,diagram) {
 	    var x2 = this.transform_x(this.coords[3],this.coords[4]) + this.coords[0];
 	    var y2 = this.transform_y(this.coords[3],this.coords[4]) + this.coords[1];
 
 	    c.draw_line(diagram,this.coords[0],this.coords[1],x2,y2);
-	}
+	};
 
 	// compute distance between x,y and nearest point on line
 	// http://www.allegro.cc/forums/thread/589720
@@ -3210,7 +3250,7 @@ jade = (function() {
 	    var dy = this.transform_y(this.coords[3],this.coords[4]);
 	    var D = Math.abs((x - this.coords[0])*dy - (y - this.coords[1])*dx)/this.len;
 	    return D;
-	}
+	};
 
 	// does mouse click fall on this component?
 	Wire.prototype.near = function(x,y) {
@@ -3218,7 +3258,7 @@ jade = (function() {
 	    // final check: distance to nearest point on line is small
 	    if (this.inside(x,y) && this.distance(x,y) <= wire_distance) return true;
 	    return false;
-	}
+	};
 
 	Wire.prototype.select_rect = function(s) {
 	    this.was_previously_selected = this.selected;
@@ -3227,7 +3267,7 @@ jade = (function() {
 	    var y2 = this.transform_y(this.coords[3],this.coords[4]) + this.coords[1];
 	    if (this.inside(this.coords[0],this.coords[1],s) || this.inside(x2,y2,s))
 		this.set_select(true);
-	}
+	};
 
 	// if connection point cp bisects the
 	// wire represented by this compononent, return true
@@ -3243,35 +3283,35 @@ jade = (function() {
 		!this.connections[1].coincident(x,y))
 		return true;
 	    return false;
-	}
+	};
 
 	// if some connection point of component c bisects the
 	// wire represented by this compononent, return that
 	// connection point.  Otherwise return null.
 	Wire.prototype.bisect = function(c) {
-	    if (c == undefined) return;
+	    if (c === undefined) return;
 	    for (var i = c.connections.length - 1; i >= 0; i -= 1) {
 		var cp = c.connections[i];
 		if (this.bisect_cp(cp)) return cp;
 	    }
 	    return null;
-	}
+	};
 
 	Wire.prototype.propagate_label = function(label) {
 	    // wires "conduct" their label to the other end
 	    // don't worry about relabeling a cp, it won't recurse!
 	    this.connections[0].propagate_label(label);
 	    this.connections[1].propagate_label(label);
-	}
+	};
 
 	Wire.prototype.label_connections = function(prefix) {
 	    // wires don't participate in this
-	}
+	};
 
 	Wire.prototype.netlist = function(prefix) {
 	    // no netlist entry for wires
 	    return undefined;
-	}
+	};
 
 	///////////////////////////////////////////////////////////////////////////////
 	//
@@ -3309,13 +3349,14 @@ jade = (function() {
 	PartsBin.prototype.resize = function(dx,dy,selected) {
 	    var e = $(this.parts_list);
 	    e.height(dy + e.height());
-	}
+	};
 
 	PartsBin.prototype.show = function() {
 	    // remove existing list of libraries from select
 	    var options = this.lib_select.options;
-	    for (var i = options.length - 1; i >= 0; i -=1)
+	    for (var i = options.length - 1; i >= 0; i -=1) {
 		options.remove(i);
+	    }
 
 	    // add existing libraries as options for select
 	    var libs = Object.keys(libraries);
@@ -3323,7 +3364,7 @@ jade = (function() {
 	    build_select(libs,libs[0],this.lib_select);
 
 	    this.update_modules();
-	}
+	};
 
 	// update list of modules for selected library
 	PartsBin.prototype.update_modules = function() {
@@ -3341,7 +3382,7 @@ jade = (function() {
 
 		    // check cache, create Part if new module
 		    var part = this.parts[mname];
-		    if (part == undefined) {
+		    if (part === undefined) {
 			var part = new Part(this.diagram);
 			this.parts[mname] = part;
 			part.set_component(make_component([mname,[0,0,0]]));
@@ -3364,7 +3405,7 @@ jade = (function() {
 			.mouseup(part_mouse_up);
 		}
 	    }
-	}
+	};
 
 	// one instance will be created for each part in the parts bin
 	function Part(diagram) {
@@ -3394,11 +3435,11 @@ jade = (function() {
 	    this.scale = Math.min(part_w/(1.1*Math.abs(dx)),part_h/(1.1*Math.abs(dy)),0.8);
 	    this.origin_x = b[0] + dx/2.0 - part_w/(2.0*this.scale);
 	    this.origin_y = b[1] + dy/2.0 - part_h/(2.0*this.scale);
-	}
+	};
 
 	Part.prototype.set_component = function(component) {
 	    this.component = component;
-	}
+	};
 
 	Part.prototype.redraw = function() {
 	    var c = this.canvas.getContext('2d');
@@ -3408,24 +3449,24 @@ jade = (function() {
 	    c.clearRect(0,0,part_w,part_h);
 
 	    if (this.component) this.component.draw(this);
-	}
+	};
 
 	Part.prototype.select = function(which) {
 	    this.selected = which;
 	    this.redraw();
-	}
+	};
 
 	Part.prototype.update_connection_point = function(cp,old_location) {
 	    // no connection points in the parts bin
-	}
+	};
 
 	Part.prototype.moveTo = function(x,y) {
 	    this.c.moveTo((x - this.origin_x) * this.scale,(y - this.origin_y) * this.scale);
-	}
+	};
 
 	Part.prototype.lineTo = function(x,y) {
 	    this.c.lineTo((x - this.origin_x) * this.scale,(y - this.origin_y) * this.scale);
-	}
+	};
 
 	Part.prototype.draw_line = function(x1,y1,x2,y2,width) {
 	    var c = this.c;
@@ -3434,7 +3475,7 @@ jade = (function() {
 	    c.moveTo((x1 - this.origin_x) * this.scale,(y1 - this.origin_y) * this.scale);
 	    c.lineTo((x2 - this.origin_x) * this.scale,(y2 - this.origin_y) * this.scale);
 	    c.stroke();
-	}
+	};
 
 	Part.prototype.draw_arc = function(x,y,radius,start_radians,end_radians,anticlockwise,width,filled) {
 	    var c = this.c;
@@ -3444,11 +3485,11 @@ jade = (function() {
 		  start_radians,end_radians,anticlockwise);
 	    if (filled) c.fill();
 	    else c.stroke();
-	}
+	};
 
 	Part.prototype.draw_text = function(text,x,y,size) {
 	    // most text not displayed for the parts icon
-	}
+	};
 
 	Part.prototype.draw_text_important = function(text,x,y,font) {
 	    var c = this.c;
@@ -3460,13 +3501,13 @@ jade = (function() {
 
 	    c.fillStyle = 'rgb(0,0,0)';
 	    c.fillText(text,(x - this.origin_x) * this.scale,(y - this.origin_y) * this.scale);
-	}
+	};
 
 	function part_enter(event) {
 	    var part = event.target.part;
 
 	    var tip = part.component.module.properties.tool_tip;
-	    if (tip != undefined) tip = tip.value;
+	    if (tip !== undefined) tip = tip.value;
 	    else tip = part.component.type;
 	    tip += ': drag onto diagram to insert';
 
@@ -3587,16 +3628,16 @@ jade = (function() {
 
 	    // adjust diagram to reflect new size
 	    if (selected) this.diagram.resize();
-	}
+	};
 
 	Icon.prototype.show = function() {
 	    this.diagram.canvas.focus();  // capture key strokes
 	    this.diagram.resize();
-	}
+	};
 
 	Icon.prototype.set_aspect = function(module) {
 	    this.diagram.set_aspect(module.aspect(Icon.prototype.editor_name));
-	}
+	};
 
 	Icon.prototype.editor_name = 'icon';
 	editors.push(Icon);
@@ -3617,7 +3658,7 @@ jade = (function() {
 		diagram.c.fillStyle = diagram.normal_style;
 		diagram.draw_text(editor.mode,x+4,y,diagram.property_font);
 	    }
-	}
+	};
 
 	var icon_prompts = {
 	    'select': 'Click component to select, click and drag on background for area select',
@@ -3648,11 +3689,12 @@ jade = (function() {
 		this.diagram.canvas.style.cursor = 'none';
 
 	    // adjust className for mode tools to create visual indication
-	    for (m in this.modes)
+	    for (var m in this.modes) {
 		$(this.modes[m]).toggleClass('icon-tool-selected',mode == m);
+	    }
 
 	    this.status.nodeValue = icon_prompts[mode];
-	}
+	};
 
 	function icon_select(diagram) { diagram.editor.set_mode('select'); }
 	function icon_line(diagram) { diagram.editor.set_mode('line'); }
@@ -3756,7 +3798,7 @@ jade = (function() {
 		    c.remove();
 		    diagram.redraw_background();
 		} else diagram.redraw();
-	    }
+	    };
 
 	    editor.start_x = undefined;
 	}
@@ -3767,7 +3809,7 @@ jade = (function() {
 
 	    var editor = diagram.editor;
 
-	    if (editor.start_x != undefined) icon_new_component(diagram);
+	    if (editor.start_x !== undefined) icon_new_component(diagram);
 
 	    if (editor.drag_callback)
 		editor.drag_callback(diagram.cursor_x,diagram.cursor_y,editor.mode);
@@ -3783,7 +3825,7 @@ jade = (function() {
 
 	    var editor = diagram.editor;
 
-	    if (editor.start_x != undefined) icon_new_component(diagram);
+	    if (editor.start_x !== undefined) icon_new_component(diagram);
 
 	    if (editor.drag_callback) {
 		var cx = diagram.cursor_x;
@@ -3844,7 +3886,7 @@ jade = (function() {
 
 	    this.default_properties();  // add any missing properties
 	    this.setup_bbox();
-	}
+	};
 
 	Line.prototype.setup_bbox = function() {
 	    var dx = this.coords[3];
@@ -3862,7 +3904,7 @@ jade = (function() {
 
 	    // used in selection calculations
 	    this.len = Math.sqrt(dx*dx + dy*dy);
-	}
+	};
 
 	Line.prototype.drag_callback = function(x,y,action) {
 	    this.coords[3] = x - this.coords[0];
@@ -3874,21 +3916,21 @@ jade = (function() {
 		else this.setup_bbox();
 	    }
 	    return true;
-	}
+	};
 
 	Line.prototype.draw = function(diagram) {
 	    var dx = this.coords[3];
 	    var dy = this.coords[4];
 
 	    this.draw_line(diagram,0,0,dx,dy);
-	}
+	};
 
 	Line.prototype.draw_icon = function(c,diagram) {
 	    var x2 = this.transform_x(this.coords[3],this.coords[4]) + this.coords[0];
 	    var y2 = this.transform_y(this.coords[3],this.coords[4]) + this.coords[1];
 
 	    c.draw_line(diagram,this.coords[0],this.coords[1],x2,y2);
-	}
+	};
 
 	// compute distance between x,y and nearest point on line
 	// http://www.allegro.cc/forums/thread/589720
@@ -3897,7 +3939,7 @@ jade = (function() {
 	    var dy = this.transform_y(this.coords[3],this.coords[4]);
 	    var D = Math.abs((x - this.coords[0])*dy - (y - this.coords[1])*dx)/this.len;
 	    return D;
-	}
+	};
 
 	// does mous eclick fall on this component?
 	Line.prototype.near = function(x,y) {
@@ -3905,7 +3947,7 @@ jade = (function() {
 	    // final check: distance to nearest point on line is small
 	    if (this.inside(x,y) && this.distance(x,y) <= line_distance) return true;
 	    return false;
-	}
+	};
 
 	Line.prototype.select_rect = function(s) {
 	    this.was_previously_selected = this.selected;
@@ -3914,7 +3956,7 @@ jade = (function() {
 	    var y2 = this.transform_y(this.coords[3],this.coords[4]) + this.coords[1];
 	    if (this.inside(this.coords[0],this.coords[1],s) || this.inside(x2,y2,s))
 		this.set_select(true);
-	}
+	};
 
 	// line  (arc if you pull at the middle to provide a third point?)
 	function Arc(json) {
@@ -3935,7 +3977,7 @@ jade = (function() {
 
 	    this.default_properties();  // add any missing properties
 	    this.setup_bbox();
-	}
+	};
 
 	Arc.prototype.setup_bbox = function() {
 	    var dx = this.coords[3];
@@ -3944,7 +3986,7 @@ jade = (function() {
 	    var ex = this.coords[5];
 	    var ey = this.coords[6];
 
-	    if (ex == undefined) {
+	    if (ex === undefined) {
 		// we're just a line without the third point!
 		Line.prototype.setup_bbox.call(this);
 	    } else {
@@ -3959,7 +4001,7 @@ jade = (function() {
 		this.bounding_box = r;
 		this.update_coords();    // update bbox
 	    }
-	}
+	};
 
 	Arc.prototype.drag_callback = function(x,y,action) {
 	    if (action == 'arc') {
@@ -3976,12 +4018,12 @@ jade = (function() {
 		this.setup_bbox();
 	    }
 	    return true;
-	}
+	};
 
 	// draw circle segment from coords[0,1] to coords[3,4] that passes through coords[5,6]
 	Arc.prototype.draw = function(diagram) {
 	    var x3,y3;
-	    if (this.coords[5] != undefined) {
+	    if (this.coords[5] !== undefined) {
 		x3 = this.coords[5];
 		y3 = this.coords[6];
 	    } else {
@@ -3990,14 +4032,14 @@ jade = (function() {
 	    }
 
 	    this.draw_arc(diagram,0,0,this.coords[3],this.coords[4],x3,y3);
-	}
+	};
 
 	Arc.prototype.draw_icon = function(c,diagram) {
 	    var x2 = this.transform_x(this.coords[3],this.coords[4]) + this.coords[0];
 	    var y2 = this.transform_y(this.coords[3],this.coords[4]) + this.coords[1];
 
 	    var x3,y3;
-	    if (this.coords[5] != undefined) {
+	    if (this.coords[5] !== undefined) {
 		x3 = this.transform_x(this.coords[5],this.coords[6]) + this.coords[0];
 		y3 = this.transform_y(this.coords[5],this.coords[6]) + this.coords[1];
 	    } else {
@@ -4006,11 +4048,11 @@ jade = (function() {
 	    }
 
 	    c.draw_arc(diagram,this.coords[0],this.coords[1],x2,y2,x3,y3);
-	}
+	};
 
 	var text_alignments = ['top-left','top-center','top-right',
-			  'center-left','center','center-right',
-			  'bottom-left','bottom-center','bottom-right'];
+			       'center-left','center','center-right',
+			       'bottom-left','bottom-center','bottom-right'];
 
 	// crude estimate of bbox for aligned text
 	function text_bbox(text,align) {
@@ -4060,12 +4102,12 @@ jade = (function() {
 
 	    this.bounding_box = text_bbox(this.properties.text,this.properties.align);
 	    this.update_coords();
-	}
+	};
 
 	Text.prototype.drag_callback = function(x,y,action) {
 	    // nothing to do
 	    return true;
-	}
+	};
 
 	Text.prototype.draw = function(diagram) {
 	    // "+" marks the reference point for the property
@@ -4074,7 +4116,7 @@ jade = (function() {
 
 	    var align = text_alignments.indexOf(this.properties.align);
 	    this.draw_text(diagram,this.properties.text,0,0,align,this.properties.font);
-	}
+	};
 
 	Text.prototype.draw_icon = function(c,diagram) {
 	    // need to adjust alignment accounting for our rotation
@@ -4082,14 +4124,14 @@ jade = (function() {
 	    align = aOrient[this.coords[2]*9 + align];
 
 	    c.draw_text(diagram,this.properties.text,this.coords[0],this.coords[1],align,this.properties.font);
-	}
+	};
 
 	Text.prototype.edit_properties = function(diagram,x,y) {
 	    return Component.prototype.edit_properties.call(this,diagram,x,y,function(c) {
 		    c.bounding_box = text_bbox(c.properties.text,c.properties.align);
 		    c.update_coords();
 		});
-	}
+	};
 
 	// circle: center point + radius
 	function Circle(json) {
@@ -4110,13 +4152,13 @@ jade = (function() {
 
 	    this.default_properties();  // add any missing properties
 	    this.setup_bbox();
-	}
+	};
 
 	Circle.prototype.setup_bbox = function() {
 	    var radius = this.coords[3];
 	    this.bounding_box = [-radius,-radius,radius,radius];
 	    this.update_coords();    // update bbox
-	}
+	};
 
 	Circle.prototype.drag_callback = function(x,y,action) {
 	    var dx = x - this.coords[0];
@@ -4129,15 +4171,15 @@ jade = (function() {
 		else this.setup_bbox();
 	    }
 	    return true;
-	}
+	};
 
 	Circle.prototype.draw = function(diagram) {
 	    this.draw_circle(diagram,0,0,this.coords[3],false);
-	}
+	};
 
 	Circle.prototype.draw_icon = function(c,diagram) {
 	    c.draw_circle(diagram,this.coords[0],this.coords[1],this.coords[3],false);
-	}
+	};
 
 	// display of one or more module properties, aligned to reference point
 	function Property(json) {
@@ -4164,12 +4206,12 @@ jade = (function() {
 
 	    this.bounding_box = text_bbox(this.properties.format,this.properties.align);
 	    this.update_coords();
-	}
+	};
 
 	Property.prototype.drag_callback = function(x,y,action) {
 	    // nothing to do
 	    return true;
-	}
+	};
 
 	Property.prototype.draw = function(diagram) {
 	    // "+" marks the reference point for the property
@@ -4178,13 +4220,13 @@ jade = (function() {
 
 	    var align = text_alignments.indexOf(this.properties.align);
 	    this.draw_text(diagram,this.properties.format || '-no format-',0,0,align,diagram.property_font);
-	}
+	};
 
 	Property.prototype.draw_icon = function(c,diagram) {
 	    // replace occurences of {pname} in format with the
 	    // corresponding property value
 	    var s = this.properties.format || '-no format-';
-	    for (p in c.properties) {
+	    for (var p in c.properties) {
 		var v = c.properties[p] || '';
 		s = s.replace(new RegExp("\\{"+p+"\\}","gm"),v);
 	    }
@@ -4194,14 +4236,14 @@ jade = (function() {
 	    align = aOrient[this.coords[2]*9 + align];
 
 	    c.draw_text(diagram,s,this.coords[0],this.coords[1],align,diagram.property_font);
-	}
+	};
 
 	Property.prototype.edit_properties = function(diagram,x,y) {
 	    return Component.prototype.edit_properties.call(this,diagram,x,y,function(c) {
 		    c.bounding_box = text_bbox(c.properties.format,c.properties.align);
 		    c.update_coords();
 		});
-	}
+	};
 
 	// icon terminal (turns into connection point when module is instantiated)
 	function Terminal(json) {
@@ -4228,18 +4270,18 @@ jade = (function() {
 	    this.bounding_box = [-connection_point_radius,-connection_point_radius,
 				 8+connection_point_radius,connection_point_radius];
 	    this.update_coords();
-	}
+	};
 
 	Terminal.prototype.drag_callback = function(x,y,action) {
 	    // nothing to do
 	    return true;
-	}
+	};
 
 	Terminal.prototype.draw = function(diagram) {
 	    this.draw_circle(diagram,0,0,connection_point_radius,false);
 	    if (this.properties.line != 'no') this.draw_line(diagram,0,0,8,0);
 	    this.draw_text(diagram,this.properties.name,connection_point_radius-4,0,5,diagram.property_font);
-	}
+	};
 
 	Terminal.prototype.draw_icon = function(c,diagram) {
 	    if (this.properties.line != 'no') {
@@ -4250,11 +4292,11 @@ jade = (function() {
 
 		c.draw_line(diagram,x1,y1,x2,y2);
 	    }
-	}
+	};
 
 	Terminal.prototype.terminal_coords = function() {
 	    return [this.coords[0],this.coords[1],this.properties.name];
-	}
+	};
 
 	//////////////////////////////////////////////////////////////////////
 	//
@@ -4274,15 +4316,15 @@ jade = (function() {
 	}
 
 	PropertyEditor.prototype.resize = function(dx,dy,selected) {
-	}
+	};
 
 	PropertyEditor.prototype.show = function() {
-	}
+	};
 
 	PropertyEditor.prototype.set_aspect = function(module) {
 	    this.module = module;
 	    this.build_table();
-	}
+	};
 
 	PropertyEditor.prototype.build_table = function() {
 	    var editor = this;		// for closures
@@ -4291,9 +4333,9 @@ jade = (function() {
 	    // remove old rows from table
 	    $(this.table).empty();
 
-	    if (editor.module == undefined) {
+	    if (editor.module === undefined) {
 		this.table.innerHTML = '<tr><td>To edit properites you must first specify a module.</td></tr>'
-		return;
+		    return;
 	    }
 
 	    // header row
@@ -4302,7 +4344,7 @@ jade = (function() {
 	    tr.innerHTML = '<th>Action</th><th>Name</th><th>Label</th><th>Type</th><th>Value</th><th>Edit</th><th>Choices</th>';
 
 	    // one row for each existing property
-	    for (p in editor.module.properties) {
+	    for (var p in editor.module.properties) {
 		var props = editor.module.properties[p];
 		tr = document.createElement('tr');
 		this.table.appendChild(tr);
@@ -4380,8 +4422,9 @@ jade = (function() {
 		field.props = props;
 		$(field).change(function(event){
 			var vlist = event.target.value.split(',');
-			for (var i = 0; i < vlist.length; i += 1)
+			for (var i = 0; i < vlist.length; i += 1) {
 			    vlist[i] = vlist[i].trim();
+			}
 			event.target.props.choices = vlist;
 			event.target.value = vlist.join();
 			editor.module.set_modified(true);
@@ -4408,8 +4451,9 @@ jade = (function() {
 			p.value = fields.value.value.trim();
 			p.edit = fields.edit.value;
 			var vlist = fields.choices.value.split(',');
-			for (var i = 0; i < vlist.length; i += 1)
+			for (var i = 0; i < vlist.length; i += 1) {
 			    vlist[i] = vlist[i].trim();
+			}
 			p.choices = vlist;
 			editor.module.set_property(name,p);
 
@@ -4428,86 +4472,10 @@ jade = (function() {
 		tr.appendChild(td);
 		td.appendChild(fields[f]);
 	    }
-	}
+	};
 
 	PropertyEditor.prototype.editor_name = 'properties';
 	editors.push(PropertyEditor);
-
-	////////////////////////////////////////////////////////////////////////////////
-	//
-	//  Signal parsing
-	//
-	////////////////////////////////////////////////////////////////////////////////
-
-	// see if two signal lists are the same
-	function signal_equals(s1,s2) {
-	    if (s1.length == s2.length) {
-		for (var i = 0; i < s1.length; i += 1)
-		    if (s1[i] != s2[i]) return false;
-		return true;
-	    }
-	    return false;
-	}
-
-	// parse string into an array of symbols
-	//  sig_list := sig[,sig]...
-	//  sig := symbol
-        //      := sig#count         -- replicate sig specified number of times
-	//      := sig[start:stop:step]   -- expands to sig[start],sig[start+step],...,sig[end]
-	function parse_signal(s) {
-	    function parse_sig(sig) {
-		var i,m;
-
-		// replicated signal: sig#number
-		m = sig.match(/(.*)#\s*(\d+)$/);
-		if (m) {
-		    var expansion = parse_sig(m[1].trim());
-		    var count = parseInt(m[2]);
-		    if (count == NaN) return [sig];
-		    var result = [];
-		    while (count > 0) {
-			result.push.apply(result,expansion);
-			count -= 1;
-		    }
-		    return result;
-		}
-
-		// iterated signal: sig[start:stop:step] or sig[start:stop]
-		m = sig.match(/(.*)\[\s*(-?\d+)\s*:\s*(-?\d+)\s*(:\s*(-?\d+)\s*)?]$/);
-	        if (m) {
-		    var expansion = parse_sig(m[1].trim());
-		    var start = parseInt(m[2]);
-		    var end = parseInt(m[3]);
-		    var step = Math.abs(parseInt(m[5]) || 1);
-		    if (end < start) step = -step;
-
-		    var result = [];
-		    while (true) {
-			for (var k = 0; k < expansion.length; k += 1)
-			    result.push(expansion[k]+'['+start.toString()+']');
-			start += step;
-			if ((step > 0 && start > end) || (step < 0 && start < end))
-			    break;
-		    }
-		    return result;
-		}
-
-		// what's left is treated as a simple signal name
-	        if (sig) return [sig];
-		else return[];
-	    }
-
-	    // parse list of signal names
-	    var result = [];
-	    if (s != undefined) {
-		var sig_list = s.split(',');
-		for (var i = 0; i < sig_list.length; i += 1) {
-		    var expansion = parse_sig(sig_list[i].trim());
-		    result.push.apply(result,expansion);   // extend result with all the elements of expansion
-		}
-	    }
-	    return result;
-	}
 
 	//////////////////////////////////////////////////////////////////////
 	//
@@ -4515,10 +4483,68 @@ jade = (function() {
 	//
 	//////////////////////////////////////////////////////////////////////
 
+	///////////////////////////////////////////////////////////////////////////////
+	//
+	//  Parse numbers in engineering notation
+	//
+	///////////////////////////////////////////////////////////////////////////////
+
+	// convert string argument to a number, accepting usual notations
+	// (hex, octal, binary, decimal, floating point) plus engineering
+	// scale factors (eg, 1k = 1000.0 = 1e3).
+	// return default if argument couldn't be interpreted as a number
+	function parse_number(x,default_v) {
+	    var m;
+
+	    m = x.match(/^\s*([-+]?)0x([0-9a-fA-F]+)\s*$/);  // hex
+	    if (m) return parseInt(m[1]+m[2],16);
+
+	    m = x.match(/^\s*([-+]?)0b([0-1]+)\s*$/);  // binary
+	    if (m) return parseInt(m[1]+m[2],2);
+
+	    m = x.match(/^\s*([-+]?)0([0-7]+)\s*$/);  // octal
+	    if (m) return parseInt(m[1]+m[2],8);
+
+	    m = x.match(/^\s*[-+]?[0-9]*(\.([0-9]+)?)?([eE][-+]?[0-9]+)?\s*$/);  // decimal, float
+	    if (m) return parseFloat(m[0]);
+
+	    m = x.match(/^\s*([-+]?[0-9]*(\.([0-9]+)?)?)(a|A|f|F|g|G|k|K|m|M|n|N|p|P|t|T|u|U)\s*$/);  // decimal, float
+	    if (m) {
+		var result = parseFloat(m[1]);
+		var scale = m[4];
+		if (scale == 'P') result *= 1e15;   // peta
+		else if (scale == 't' || scale == 'T') result *= 1e12;  // tera
+		else if (scale == 'g' || scale == 'G') result *= 1e9;   // giga
+		else if (scale == 'M') result *= 1e6;  // mega
+		else if (scale == 'k' || scale == 'K') result *= 1e3;  // kilo
+		else if (scale == 'm') result *= 1e-3; // milli
+		else if (scale == 'u' || scale == 'U') result *= 1e-6;  // micro
+		else if (scale == 'n' || scale == 'N') result *= 1e-9;  // nano
+		else if (scale == 'p') result *= 1e-12;  // pico
+		else if (scale == 'f' || scale == 'F') result *= 1e-15; // femto
+		else if (scale == 'a' || scale == 'A') result *= 1e-18; // atto
+		return result;
+	    }
+
+	    return (default_v || NaN);
+	}
+	exports.parse_number = parse_number;  // make it easy to call from outside
+
+	// try to parse a number and generate an alert if there was a syntax error
+	function parse_number_alert(s) {
+	    var v = parse_number(s,undefined);
+
+	    if (v === undefined)
+		throw 'The string \"'+s+'\" could not be interpreted as an integer, a floating-point number or a number using engineering notation. Sorry, expressions are not allowed in this context.';
+
+	    return v;
+	}
+	exports.parse_number_alert = parse_number_alert;  // make it easy to call from outside
+
 	function engineering_notation(n,nplaces,trim) {
 	    if (n == 0) return '0';
-	    if (n == undefined) return 'undefined';
-	    if (trim == undefined) trim = true;
+	    if (n === undefined) return 'undefined';
+	    if (trim === undefined) trim = true;
 
 	    var sign = n < 0 ? -1 : 1;
 	    var log10 = Math.log(sign*n)/Math.LN10;
@@ -4559,11 +4585,294 @@ jade = (function() {
 	}
 	exports.engineering_notation = engineering_notation;
 
-	//////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////
 	//
-	// sadly javascript has no modules, so we have to fake it
+	//  Source parsing
 	//
-	//////////////////////////////////////////////////////////////////////
+	///////////////////////////////////////////////////////////////////////////////
 
-	return exports;
+	// argument is a string describing the source's value (see comments for details)
+	// source types: dc,step,square,triangle,sin,pulse,pwl,pwl_repeating
+
+	// returns an object with the following attributes:
+	//   fun -- name of source function
+	//   args -- list of argument values
+	//   value(t) -- compute source value at time t
+	//   inflection_point(t) -- compute time after t when a time point is needed
+	//   period -- repeat period for periodic sources (0 if not periodic)
+	
+	function parse_source(v) {
+	    // generic parser: parse v as either <value> or <fun>(<value>,...)
+	    var src = new Object();
+	    src.period = 0; // Default not periodic
+	    src.value = function(t) { return 0; };  // overridden below
+	    src.inflection_point = function(t) { return undefined; };  // may be overridden below
+
+	    var m = v.match(/^\s*(\w+)\s*\(([^\)]*)\)\s*$/);  // parse f(arg,arg,...)
+	    if (m) {
+		src.fun = m[1];
+		src.args = m[2].split(/\s*,\s*/).map(parse_number_alert);
+	    } else {
+		src.fun = 'dc';
+		src.args = [parse_number_alert(v)];
+	    }
+	    //console.log(src.fun + ': ' + src.args);
+
+	    // post-processing for constant sources
+	    // dc(v)
+	    if (src.fun == 'dc') {
+		var v = arg_value(src.args,0,0);
+		src.args = [v];
+		src.value = function(t) { return v; };  // closure
+	    }
+
+	    // post-processing for impulse sources
+	    // impulse(height,width)
+	    else if (src.fun == 'impulse') {
+		var h = arg_value(src.args,0,1);  // default height: 1
+		var w = Math.abs(arg_value(src.args,2,1e-9));  // default width: 1ns
+		src.args = [h,w];  // remember any defaulted values
+		pwl_source(src,[0,0,w/2,h,w,0],false);
+	    }
+
+	    // post-processing for step sources
+	    // step(v_init,v_plateau,t_delay,t_rise)
+	    else if (src.fun == 'step') {
+		var v1 = arg_value(src.args,0,0);  // default init value: 0V
+		var v2 = arg_value(src.args,1,1);  // default plateau value: 1V
+		var td = Math.max(0,arg_value(src.args,2,0));  // time step starts
+		var tr = Math.abs(arg_value(src.args,3,1e-9));  // default rise time: 1ns
+		src.args = [v1,v2,td,tr];  // remember any defaulted values
+		pwl_source(src,[td,v1,td+tr,v2],false);
+	    }
+
+	    // post-processing for square wave
+	    // square(v_init,v_plateau,freq,duty_cycle)
+	    else if (src.fun == 'square') {
+		var v1 = arg_value(src.args,0,0);  // default init value: 0V
+		var v2 = arg_value(src.args,1,1);  // default plateau value: 1V
+		var freq = Math.abs(arg_value(src.args,2,1));  // default frequency: 1Hz
+		var duty_cycle  = Math.min(100,Math.abs(arg_value(src.args,3,50)));  // default duty cycle: 0.5
+		src.args = [v1,v2,freq,duty_cycle];  // remember any defaulted values
+
+		var per = freq == 0 ? Infinity : 1/freq;
+		var t_change = 0.01 * per;   // rise and fall time
+		var t_pw = .01 * duty_cycle * 0.98 * per;  // fraction of cycle minus rise and fall time
+		pwl_source(src,[0,v1,t_change,v2,t_change+t_pw,
+				v2,t_change+t_pw+t_change,v1,per,v1],true);
+	    }
+
+	    // post-processing for triangle
+	    // triangle(v_init,v_plateua,t_period)
+	    else if (src.fun == 'triangle') {
+		var v1 = arg_value(src.args,0,0);  // default init value: 0V
+		var v2 = arg_value(src.args,1,1);  // default plateau value: 1V
+		var freq = Math.abs(arg_value(src.args,2,1));  // default frequency: 1s
+		src.args = [v1,v2,freq];  // remember any defaulted values
+
+		var per = freq == 0 ? Infinity : 1/freq;
+		pwl_source(src,[0,v1,per/2,v2,per,v1],true);
+	    }
+
+	    // post-processing for pwl and pwlr sources
+	    // pwl[r](t1,v1,t2,v2,...)
+	    else if (src.fun == 'pwl' || src.fun == 'pwl_repeating') {
+		pwl_source(src,src.args,src.fun == 'pwl_repeating');
+	    }
+
+	    // post-processing for pulsed sources
+	    // pulse(v_init,v_plateau,t_delay,t_rise,t_fall,t_width,t_period)
+	    else if (src.fun == 'pulse') {
+		var v1 = arg_value(src.args,0,0);  // default init value: 0V
+		var v2 = arg_value(src.args,1,1);  // default plateau value: 1V
+		var td = Math.max(0,arg_value(src.args,2,0));  // time pulse starts
+		var tr = Math.abs(arg_value(src.args,3,1e-9));  // default rise time: 1ns
+		var tf = Math.abs(arg_value(src.args,4,1e-9));  // default rise time: 1ns
+		var pw = Math.abs(arg_value(src.args,5,1e9));  // default pulse width: "infinite"
+		var per = Math.abs(arg_value(src.args,6,1e9));  // default period: "infinite"
+		src.args = [v1,v2,td,tr,tf,pw,per];
+
+		var t1 = td;       // time when v1 -> v2 transition starts
+		var t2 = t1 + tr;  // time when v1 -> v2 transition ends
+		var t3 = t2 + pw;  // time when v2 -> v1 transition starts
+		var t4 = t3 + tf;  // time when v2 -> v1 transition ends
+
+		pwl_source(src,[t1,v1, t2,v2, t3,v2, t4,v1, per,v1],true);
+	    }
+
+	    // post-processing for sinusoidal sources
+	    // sin(v_offset,v_amplitude,freq_hz,t_delay,phase_offset_degrees)
+	    else if (src.fun == 'sin') {
+		var voffset = arg_value(src.args,0,0);  // default offset voltage: 0V
+		var va = arg_value(src.args,1,1);  // default amplitude: -1V to 1V
+		var freq = Math.abs(arg_value(src.args,2,1));  // default frequency: 1Hz
+		src.period = 1.0/freq;
+
+		var td = Math.max(0,arg_value(src.args,3,0));  // default time delay: 0sec
+		var phase = arg_value(src.args,4,0);  // default phase offset: 0 degrees
+		src.args = [voffset,va,freq,td,phase];
+
+		phase /= 360.0;
+
+		// return value of source at time t
+		src.value = function(t) {  // closure
+		    if (t < td) return voffset + va*Math.sin(2*Math.PI*phase);
+		    else return voffset + va*Math.sin(2*Math.PI*(freq*(t - td) + phase));
+		};
+
+		// return time of next inflection point after time t
+		src.inflection_point = function(t) {	// closure
+		    if (t < td) return td;
+		    else return undefined;
+		};
+	    }
+	
+	    // object has all the necessary info to compute the source value and inflection points
+	    src.dc = src.value(0);   // DC value is value at time 0
+	    return src;
+	}
+	exports.parse_source = parse_source;
+
+	function pwl_source(src,tv_pairs,repeat) {
+	    var nvals = tv_pairs.length;
+	    if (repeat)
+		src.period = tv_pairs[nvals-2];  // Repeat period of source
+	    if (nvals % 2 == 1) npts -= 1;  // make sure it's even!
+
+	    if (nvals <= 2) {
+		// handle degenerate case
+		src.value = function(t) { return nvals == 2 ? tv_pairs[1] : 0; };
+		src.inflection_point = function(t) { return undefined; }
+	    } else {
+		src.value = function(t) { // closure
+		    if (repeat)
+			// make time periodic if values are to be repeated
+			t = Math.fmod(t,tv_pairs[nvals-2]);
+		    var last_t = tv_pairs[0];
+		    var last_v = tv_pairs[1];
+		    if (t > last_t) {
+			var next_t,next_v;
+			for (var i = 2; i < nvals; i += 2) {
+			    next_t = tv_pairs[i];
+			    next_v = tv_pairs[i+1];
+			    if (next_t > last_t)  // defend against bogus tv pairs
+				if (t < next_t)
+				    return last_v + (next_v - last_v)*(t - last_t)/(next_t - last_t);
+			    last_t = next_t;
+			    last_v = next_v;
+			}
+		    }
+		    return last_v;
+		};
+		src.inflection_point = function(t) {  // closure
+		    if (repeat)
+			// make time periodic if values are to be repeated
+			t = Math.fmod(t,tv_pairs[nvals-2]);
+		    for (var i = 0; i < nvals; i += 2) {
+			var next_t = tv_pairs[i];
+			if (t < next_t) return next_t;
+		    }
+		    return undefined;
+		};
+	    }
+	}
+
+	// helper function: return args[index] if present, else default_v
+	function arg_value(args,index,default_v) {
+	    var result = args[index];
+	    if (result ==== undefined) result = default_v;
+	    return result;
+	}
+
+	// we need fmod in the Math library!
+	Math.fmod = function(numerator,denominator) {
+	    var quotient = Math.floor(numerator/denominator);
+	    return numerator - quotient*denominator;
+	};
+
+	////////////////////////////////////////////////////////////////////////////////
+	//
+	//  Signal parsing
+	//
+	////////////////////////////////////////////////////////////////////////////////
+
+	// see if two signal lists are the same
+	function signal_equals(s1,s2) {
+	    if (s1.length == s2.length) {
+		for (var i = 0; i < s1.length; i += 1) {
+		    if (s1[i] != s2[i]) return false;
+		}
+		return true;
+	    }
+	    return false;
+	}
+
+	// parse string into an array of symbols
+	//  sig_list := sig[,sig]...
+	//  sig := symbol
+        //      := sig#count         -- replicate sig specified number of times
+	//      := sig[start:stop:step]   -- expands to sig[start],sig[start+step],...,sig[end]
+	function parse_signal(s) {
+	    function parse_sig(sig) {
+		var i,m;
+
+		// replicated signal: sig#number
+		m = sig.match(/(.*)#\s*(\d+)$/);
+		if (m) {
+		    var expansion = parse_sig(m[1].trim());
+		    var count = parseInt(m[2]);
+		    if (count == NaN) return [sig];
+		    var result = [];
+		    while (count > 0) {
+			result.push.apply(result,expansion);
+			count -= 1;
+		    }
+		    return result;
+		}
+
+		// iterated signal: sig[start:stop:step] or sig[start:stop]
+		m = sig.match(/(.*)\[\s*(-?\d+)\s*:\s*(-?\d+)\s*(:\s*(-?\d+)\s*)?]$/);
+	    if (m) {
+		var expansion = parse_sig(m[1].trim());
+		var start = parseInt(m[2]);
+		var end = parseInt(m[3]);
+		var step = Math.abs(parseInt(m[5]) || 1);
+		if (end < start) step = -step;
+
+		var result = [];
+		while (true) {
+		    for (var k = 0; k < expansion.length; k += 1) {
+			result.push(expansion[k]+'['+start.toString()+']');
+		    }
+		    start += step;
+		    if ((step > 0 && start > end) || (step < 0 && start < end))
+			break;
+		}
+		return result;
+	    }
+
+	    // what's left is treated as a simple signal name
+	    if (sig) return [sig];
+	    else return[];
+	}
+
+	// parse list of signal names
+	var result = [];
+	if (s !== undefined) {
+	    var sig_list = s.split(',');
+	    for (var i = 0; i < sig_list.length; i += 1) {
+		var expansion = parse_sig(sig_list[i].trim());
+		result.push.apply(result,expansion);   // extend result with all the elements of expansion
+	    }
+	}
+	return result;
+    }
+
+    //////////////////////////////////////////////////////////////////////
+    //
+    // sadly javascript has no modules, so we have to fake it
+    //
+    //////////////////////////////////////////////////////////////////////
+
+    return exports;
     }());
