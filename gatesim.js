@@ -139,6 +139,7 @@ var gatesim = (function() {
     Network.prototype.load_netlist = function(netlist) {
         // process each component in the JSON netlist (see schematic.js for format)
         var counts = {};
+        var n,d;
         for (var i = netlist.length - 1; i >= 0; i -= 1) {
             var component = netlist[i];
             var type = component[0];
@@ -165,7 +166,7 @@ var gatesim = (function() {
                     inputs.push(connections[info[0][j]]);
                 }
                 // create a new device
-                var d = new LogicGate(this, type, name, info[2], inputs, connections[info[1]], properties, true);
+                d = new LogicGate(this, type, name, info[2], inputs, connections[info[1]], properties, true);
                 this.devices.push(d);
                 this.device_map[name] = d;
             }
@@ -174,36 +175,36 @@ var gatesim = (function() {
             else if (type == 'gates:dreg') {}
             else if (type == 'analog:g') {
                 // gnd node -- drive with a 0-input OR gate (output = 0)
-                var n = connections.gnd;
+                n = connections.gnd;
                 if (n.drivers.length > 0) continue; // already handled this one
                 n.v = V0;
                 this.devices.push(new LogicGate(this, type, name, OrTable, [], n, properties, true));
             }
             else if (type == 'analog:vdd') {
                 // power supply node -- drive with a 0-input AND gate (output = 1)
-                var n = connections.vdd;
+                n = connections.vdd;
                 if (n.drivers.length > 0) continue; // already handled this one
                 n.v = V1;
                 this.devices.push(new LogicGate(this, type, name, AndTable, [], n, properties, true));
             }
             else if (type == 'analog:v') {
-                var n = connections.nplus; // hmmm.
+                n = connections.nplus; // hmmm.
                 if (n.drivers.length > 0) continue; // already handled this one
 
                 // fix me...
                 n.v = V1;
                 this.devices.push(new LogicGate(this, type, name, AndTable, [], n, properties, true));
             }
-            else throw 'Unrecognized gate: ' + type
+            else throw 'Unrecognized gate: ' + type;
         }
 
         // give each Node a chance to finalize itself
-        for (var n in this.node_map) {
+        for (n in this.node_map) {
             this.node_map[n].finalize();
         }
 
         var msg = this.N.toString() + ' nodes';
-        for (var d in counts) {
+        for (d in counts) {
             msg += ', ' + counts[d].toString() + ' ' + d.split(':')[1];
         }
         console.log(msg);
@@ -438,6 +439,8 @@ var gatesim = (function() {
     };
 
     Node.prototype.finalize = function() {
+        var i,d;
+        
         if (this.drivers === undefined || this.driver !== undefined) return; // already finalized
 
         // if no explicit capacitance has been supplied, estimate
@@ -448,17 +451,17 @@ var gatesim = (function() {
         if (this.capacitance === 0) this.capacitance = c_intercept + c_slope * (ndrivers + nfanouts);
 
         // add capacitances from drivers and fanout connections
-        for (var i = 0; i < ndrivers; i += 1) {
+        for (i = 0; i < ndrivers; i += 1) {
             this.capacitance += this.drivers[i].capacitance(this);
         }
-        for (var i = 0; i < nfanouts; i += 1) {
+        for (i = 0; i < nfanouts; i += 1) {
             this.capacitance += this.fanouts[i].capacitance(this);
         }
 
         // if there is only 1 driver and it's not a tristate output
         // then that device is the driver for this node
         if (ndrivers == 1) {
-            var d = this.drivers[0];
+            d = this.drivers[0];
             if (!d.tristate(this)) {
                 this.driver = d;
                 this.drivers = undefined;
@@ -469,8 +472,8 @@ var gatesim = (function() {
         // handle tristates and multiple drivers by adding a special BUS
         // device that computes value from all the drivers
         var inputs = [];
-        for (var i = 0; i < ndrivers; i += 1) {
-            var d = this.drivers[i];
+        for (i = 0; i < ndrivers; i += 1) {
+            d = this.drivers[i];
             if (!d.tristate(this)) {
                 // shorting together non-tristate outputs, so complain
                 var msg = 'Node ' + this.name + ' connects to more than one non-tristate output.  See devices: \n';
@@ -613,44 +616,25 @@ var gatesim = (function() {
 
     // for each logic gate provide [input-terminal-list,output-terminal,table]
     var logic_gates = {
-        'gates:and2': [
-            ['A', 'B'], 'Z', AndTable],
-        'gates:and3': [
-            ['A', 'B', 'C'], 'Z', AndTable],
-        'gates:and4': [
-            ['A', 'B', 'C', 'D'], 'Z', AndTable],
-        'gates:buffer': [
-            ['A'], 'Z', AndTable],
-        'gates:inv': [
-            ['A'], 'Z', NandTable],
-        'gates:mux2': [
-            ['S', 'D0', 'D1'], 'Y', Mux2Table],
-        'gates:mux4': [
-            ['S0', 'S1', 'D0', 'D1', 'D2', 'D3'], 'Y', Mux4Table],
-        'gates:nand2': [
-            ['A', 'B'], 'Z', NandTable],
-        'gates:nand3': [
-            ['A', 'B', 'C'], 'Z', NandTable],
-        'gates:nand4': [
-            ['A', 'B', 'C', 'D'], 'Z', NandTable],
-        'gates:nor2': [
-            ['A', 'B'], 'Z', NorTable],
-        'gates:nor3': [
-            ['A', 'B', 'C'], 'Z', NorTable],
-        'gates:nor4': [
-            ['A', 'B', 'C', 'D'], 'Z', NorTable],
-        'gates:or2': [
-            ['A', 'B'], 'Z', OrTable],
-        'gates:or3': [
-            ['A', 'B', 'C'], 'Z', OrTable],
-        'gates:or4': [
-            ['A', 'B', 'C', 'D'], 'Z', OrTable],
-        'gates:tristate': [
-            ['E', 'A'], 'Z', TristateBufferTable],
-        'gates:xor2': [
-            ['A', 'B'], 'Z', XorTable],
-        'gates:xnor2': [
-            ['A', 'B'], 'Z', XnorTable]
+        'gates:and2': [['A', 'B'], 'Z', AndTable],
+        'gates:and3': [['A', 'B', 'C'], 'Z', AndTable],
+        'gates:and4': [['A', 'B', 'C', 'D'], 'Z', AndTable],
+        'gates:buffer': [['A'], 'Z', AndTable],
+        'gates:inv': [['A'], 'Z', NandTable],
+        'gates:mux2': [['S', 'D0', 'D1'], 'Y', Mux2Table],
+        'gates:mux4': [['S0', 'S1', 'D0', 'D1', 'D2', 'D3'], 'Y', Mux4Table],
+        'gates:nand2': [['A', 'B'], 'Z', NandTable],
+        'gates:nand3': [['A', 'B', 'C'], 'Z', NandTable],
+        'gates:nand4': [['A', 'B', 'C', 'D'], 'Z', NandTable],
+        'gates:nor2': [['A', 'B'], 'Z', NorTable],
+        'gates:nor3': [['A', 'B', 'C'], 'Z', NorTable],
+        'gates:nor4': [['A', 'B', 'C', 'D'], 'Z', NorTable],
+        'gates:or2': [['A', 'B'], 'Z', OrTable],
+        'gates:or3': [['A', 'B', 'C'], 'Z', OrTable],
+        'gates:or4': [['A', 'B', 'C', 'D'], 'Z', OrTable],
+        'gates:tristate': [['E', 'A'], 'Z', TristateBufferTable],
+        'gates:xor2': [['A', 'B'], 'Z', XorTable],
+        'gates:xnor2': [['A', 'B'], 'Z', XnorTable]
     };
 
     function LogicGate(network, type, name, table, inputs, output, properties, lenient) {
@@ -729,10 +713,12 @@ var gatesim = (function() {
     // evaluation of output values triggered by an event on the input
     LogicGate.prototype.process_event = function(event) {
         var onode = this.output;
+        var v;
+        
         if (event.type == CONTAMINATE) {
             // a lenient gate won't contaminate the output under the right circumstances
             if (this.lenient) {
-                var v = this.evaluate();
+                v = this.evaluate();
                 if (onode.pd_event === null) {
                     // no events pending and current value is same as new value
                     if (onode.cd_event === null && v == onode.v) return;
@@ -747,7 +733,7 @@ var gatesim = (function() {
             onode.c_event(this.properties.tcd);
         }
         else if (event.type == PROPAGATE) {
-            var v = this.evaluate();
+            v = this.evaluate();
             if (!this.lenient || v != onode.v || onode.cd_event !== null || onode.pd_event !== null) {
                 var drive, tpd;
                 if (v == V1) {

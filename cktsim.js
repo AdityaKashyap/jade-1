@@ -211,9 +211,10 @@ var cktsim = (function() {
             if (typeof results == 'string') this.message(results);
             else {
                 var x_values = results._frequencies_;
-
+                var i,j,v;
+                
                 // x axis will be a log scale
-                for (var i = x_values.length - 1; i >= 0; i -= 1) {
+                for (i = x_values.length - 1; i >= 0; i -= 1) {
                     x_values[i] = Math.log(x_values[i]) / Math.LN10;
                 }
 
@@ -229,7 +230,7 @@ var cktsim = (function() {
                     var ac_results = {};
 
                     // save requested values for each requested node
-                    for (var j = 0; j < submit.length; j += 1) {
+                    for (j = 0; j < submit.length; j += 1) {
                         var flist = submit[j]; // [node_name,f1,f2,...]
                         var node = flist[0];
                         var values = results[node];
@@ -237,7 +238,7 @@ var cktsim = (function() {
                         // for each requested freq, interpolate response value
                         for (var k = 1; k < flist.length; k += 1) {
                             var f = flist[k];
-                            var v = interpolate(f, x_values, values);
+                            v = interpolate(f, x_values, values);
                             // convert to dB
                             fvlist.push([f, v === undefined ? 'undefined' : 20.0 * Math.log(v) / Math.LN10]);
                         }
@@ -255,13 +256,14 @@ var cktsim = (function() {
 
                 var probe_maxv = [];
                 var probe_color = [];
+                var label,color,offset;
 
                 // Check for probe with near zero transfer function and warn
                 for (i = probes.length - 1; i >= 0; i -= 1) {
                     if (probes[i][3] != 'voltage') continue;
                     probe_color[i] = probes[i][0];
-                    var label = probes[i][1];
-                    var v = results[label];
+                    label = probes[i][1];
+                    v = results[label];
                     probe_maxv[i] = array_max(v); // magnitudes always > 0
                 }
                 var all_max = array_max(probe_maxv);
@@ -281,16 +283,17 @@ var cktsim = (function() {
 
                 for (i = probes.length - 1; i >= 0; i -= 1) {
                     if (probes[i][3] != 'voltage') continue;
-                    var color = probes[i][0];
-                    var label = probes[i][1];
-                    var offset = jade.parse_number(probes[i][2]);
+                    color = probes[i][0];
+                    label = probes[i][1];
+                    offset = jade.parse_number(probes[i][2]);
 
-                    var v = results[label];
+                    v = results[label];
                     // convert values into dB relative to source amplitude
                     var v_max = 1;
-                    for (var j = v.length - 1; j >= 0; j -= 1)
-                    // convert each value to dB relative to max
-                    v[j] = 20.0 * Math.log(v[j] / v_max) / Math.LN10;
+                    for (j = v.length - 1; j >= 0; j -= 1) {
+                        // convert each value to dB relative to max
+                        v[j] = 20.0 * Math.log(v[j] / v_max) / Math.LN10;
+                    }
                     y_values.push([color, offset, v]);
 
                     v = results[label + '_phase'];
@@ -417,7 +420,7 @@ var cktsim = (function() {
     function transient_results(results, progress) {
         var diagram = progress.win.diagram;
         var probes = progress.probes;
-        var probe_names = progress.probe_names;
+        var v;
 
         jade.window_close(progress.win); // all done with progress bar
 
@@ -446,7 +449,7 @@ var cktsim = (function() {
                     // for each requested time, interpolate waveform value
                     for (var k = 1; k < tlist.length; k += 1) {
                         var t = tlist[k];
-                        var v = interpolate(t, x_values, values);
+                        v = interpolate(t, x_values, values);
                         tvlist.push([t, v === undefined ? 'undefined' : v]);
                     }
                     // save results as list of [t,value] pairs
@@ -464,7 +467,7 @@ var cktsim = (function() {
                 var color = probes[i][0];
                 var label = probes[i][1];
                 var offset = jade.parse_number(probes[i][2]);
-                var v = results[label];
+                v = results[label];
                 if (v === undefined) {
                     alert('The ' + color + ' probe is connected to node ' + '"' + label + '"' + ' which is not an actual circuit node');
                 }
@@ -867,7 +870,7 @@ var cktsim = (function() {
             // Non-algebraic variables and probe variables get lte
             this.ltecheck = new Array(this.N);
             for (i = this.N; i >= 0; i -= 1) {
-                this.ltecheck[i] = (this.ar[i] == 0);
+                this.ltecheck[i] = (this.ar[i] === 0);
             }
 
             for (var name in this.node_map) {
@@ -882,12 +885,13 @@ var cktsim = (function() {
 
             // Check for periodic sources
             var period = tstop - tstart;
+            var per;
             for (i = this.voltage_sources.length - 1; i >= 0; i -= 1) {
-                var per = this.voltage_sources[i].src.period;
+                per = this.voltage_sources[i].src.period;
                 if (per > 0) period = Math.min(period, per);
             }
             for (i = this.current_sources.length - 1; i >= 0; i -= 1) {
-                var per = this.current_sources[i].src.period;
+                per = this.current_sources[i].src.period;
                 if (per > 0) period = Math.min(period, per);
             }
             this.periods = Math.ceil((tstop - tstart) / period);
@@ -993,10 +997,12 @@ var cktsim = (function() {
     // here's where the real work is done
     // tupdate is the time we should update progress bar
     Circuit.prototype.tran_steps = function(tupdate) {
+        var i;
+        
         if (!this.progress.stop_requested) // halt when user clicks stop
         while (this.step_index < this.max_nsteps) {
             // Save the just computed solution, and move back q and c.
-            for (var i = this.N - 1; i >= 0; i -= 1) {
+            for (i = this.N - 1; i >= 0; i -= 1) {
                 if (this.step_index >= 0) this.response[i].push(this.solution[i]);
                 this.oldc[i] = this.c[i];
                 this.old3sol[i] = this.old2sol[i];
@@ -1514,15 +1520,15 @@ var cktsim = (function() {
     function mat_rank(Mo) {
         var Nr = Mo.length; // Number of rows
         var Nc = Mo[0].length; // Number of columns
-        var temp, i, j;
+        var temp, i, j, row, col;
         // Make a copy to avoid overwriting
         var M = mat_make(Nr, Nc);
         mat_copy(Mo, M);
 
         // Find matrix maximum entry
         var max_abs_entry = 0;
-        for (var row = Nr - 1; row >= 0; row -= 1) {
-            for (var col = Nr - 1; col >= 0; col -= 1) {
+        for (row = Nr - 1; row >= 0; row -= 1) {
+            for (col = Nr - 1; col >= 0; col -= 1) {
                 if (Math.abs(M[row][col]) > max_abs_entry) max_abs_entry = Math.abs(M[row][col]);
             }
         }
@@ -1530,12 +1536,12 @@ var cktsim = (function() {
         // Gaussian elimination to find rank
         var the_rank = 0;
         var start_col = 0;
-        for (var row = 0; row < Nr; row += 1) {
+        for (row = 0; row < Nr; row += 1) {
             // Search for first nonzero column in the remaining rows.
-            for (var col = start_col; col < Nc; col += 1) {
+            for (col = start_col; col < Nc; col += 1) {
                 var max_v = Math.abs(M[row][col]);
                 var max_row = row;
-                for (var i = row + 1; i < Nr; i += 1) {
+                for (i = row + 1; i < Nr; i += 1) {
                     temp = Math.abs(M[i][col]);
                     if (temp > max_v) {
                         max_v = temp;
@@ -1552,10 +1558,10 @@ var cktsim = (function() {
                     M[max_row] = temp;
 
                     // now eliminate this column for all subsequent rows
-                    for (var i = row + 1; i < Nr; i += 1) {
+                    for (i = row + 1; i < Nr; i += 1) {
                         temp = M[i][col] / M[row][col]; // multiplier for current row
                         if (temp !== 0) // subtract 
-                        for (var j = col; j < Nc; j += 1) {
+                        for (j = col; j < Nc; j += 1) {
                             M[i][j] -= M[row][j] * temp;
                         }
                     }
@@ -1574,27 +1580,27 @@ var cktsim = (function() {
     // M should have the extra column!
     // Almost everything is in-lined for speed, sigh.
     function mat_solve_rq(M, rhs) {
-
+        var row, rowp, col, Mr;
         var Nr = M.length; // Number of rows
         var Nc = M[0].length; // Number of columns
 
         // Copy the rhs in to the last column of M if one is given.
         if (rhs !== null) {
-            for (var row = Nr - 1; row >= 0; row -= 1) {
+            for (row = Nr - 1; row >= 0; row -= 1) {
                 M[row][Nc - 1] = rhs[row];
             }
         }
 
         var mat_scale = 0; // Sets the scale for comparison to zero.
         var max_nonzero_row = Nr - 1; // Assumes M nonsingular.
-        for (var row = 0; row < Nr; row += 1) {
+        for (row = 0; row < Nr; row += 1) {
             // Find largest row with largest 2-norm
             var max_row = row;
             var maxsumsq = 0;
-            for (var rowp = row; rowp < Nr; rowp += 1) {
-                var Mr = M[rowp];
+            for (rowp = row; rowp < Nr; rowp += 1) {
+                Mr = M[rowp];
                 var sumsq = 0;
-                for (var col = Nc - 2; col >= 0; col -= 1) { // Last col=rhs
+                for (col = Nc - 2; col >= 0; col -= 1) { // Last col=rhs
                     sumsq += Mr[col] * Mr[col];
                 }
                 if ((row == rowp) || (sumsq > maxsumsq)) {
@@ -1622,17 +1628,17 @@ var cktsim = (function() {
 
 
             // Nonzero row, eliminate from rows below
-            var Mr = M[row];
-            for (var col = Nc - 1; col >= 0; col -= 1) { // Scale rhs also
+            Mr = M[row];
+            for (col = Nc - 1; col >= 0; col -= 1) { // Scale rhs also
                 Mr[col] *= scale;
             }
-            for (var rowp = row + 1; rowp < Nr; rowp += 1) { // Update.
+            for (rowp = row + 1; rowp < Nr; rowp += 1) { // Update.
                 var Mrp = M[rowp];
                 var inner = 0;
-                for (var col = Nc - 2; col >= 0; col -= 1) { // Project 
+                for (col = Nc - 2; col >= 0; col -= 1) { // Project 
                     inner += Mr[col] * Mrp[col];
                 }
-                for (var col = Nc - 1; col >= 0; col -= 1) { // Ortho (rhs also)
+                for (col = Nc - 1; col >= 0; col -= 1) { // Ortho (rhs also)
                     Mrp[col] -= inner * Mr[col];
                 }
             }
@@ -1640,12 +1646,12 @@ var cktsim = (function() {
 
         // Last Column of M has inv(R^T)*rhs.  Scale rows of Q to get x.
         var x = new Array(Nc - 1);
-        for (var col = Nc - 2; col >= 0; col -= 1) {
+        for (col = Nc - 2; col >= 0; col -= 1) {
             x[col] = 0;
         }
-        for (var row = max_nonzero_row; row >= 0; row -= 1) {
-            var Mr = M[row];
-            for (var col = Nc - 2; col >= 0; col -= 1) {
+        for (row = max_nonzero_row; row >= 0; row -= 1) {
+            Mr = M[row];
+            for (col = Nc - 2; col >= 0; col -= 1) {
                 x[col] += Mr[col] * Mr[Nc - 1];
             }
         }
@@ -2256,11 +2262,12 @@ var cktsim = (function() {
 
         var y_min = Infinity;
         var y_max = -Infinity;
-        if (y_values !== undefined && y_values.length > 0) for (var plot = y_values.length - 1; plot >= 0; plot -= 1) {
-            var values = y_values[plot][2];
+        var plot, values, offset, temp;
+        if (y_values !== undefined && y_values.length > 0) for (plot = y_values.length - 1; plot >= 0; plot -= 1) {
+            values = y_values[plot][2];
             if (values === undefined) continue; // no data points
-            var offset = y_values[plot][1];
-            var temp = array_min(values) + offset;
+            offset = y_values[plot][1];
+            temp = array_min(values) + offset;
             if (temp < y_min) y_min = temp;
             temp = array_max(values) + offset;
             if (temp > y_max) y_max = temp;
@@ -2270,11 +2277,11 @@ var cktsim = (function() {
 
         var z_min = Infinity;
         var z_max = -Infinity;
-        if (z_values !== undefined && z_values.length > 0) for (var plot = z_values.length - 1; plot >= 0; plot -= 1) {
-            var values = z_values[plot][2];
+        if (z_values !== undefined && z_values.length > 0) for (plot = z_values.length - 1; plot >= 0; plot -= 1) {
+            values = z_values[plot][2];
             if (values === undefined) continue; // no data points
-            var offset = z_values[plot][1];
-            var temp = array_min(values) + offset;
+            offset = z_values[plot][1];
+            temp = array_min(values) + offset;
             if (temp < z_min) z_min = temp;
             temp = array_max(values) + offset;
             if (temp > z_max) z_max = temp;
@@ -2298,6 +2305,8 @@ var cktsim = (function() {
         var x_values = canvas.x_values;
         var y_values = canvas.y_values;
         var z_values = canvas.z_values;
+        var temp, x, y, z, plot, i;
+        var color, values, offset;
 
         var left_margin = (y_values !== undefined && y_values.length > 0) ? 55 : 25;
         var top_margin = 25;
@@ -2339,8 +2348,8 @@ var cktsim = (function() {
         c.textAlign = 'center';
         c.textBaseline = 'top';
         var end = top_margin + pheight;
-        for (var x = x_min; x <= x_max; x += x_limits[2]) {
-            var temp = plot_x(x) + 0.5; // keep lines crisp!
+        for (x = x_min; x <= x_max; x += x_limits[2]) {
+            temp = plot_x(x) + 0.5; // keep lines crisp!
 
             // grid line
             c.beginPath();
@@ -2372,9 +2381,9 @@ var cktsim = (function() {
             // draw y grid
             c.textAlign = 'right';
             c.textBaseline = 'middle';
-            for (var y = y_min; y <= y_max; y += y_limits[2]) {
+            for (y = y_min; y <= y_max; y += y_limits[2]) {
                 if (Math.abs(y / y_max) < 0.001) y = 0.0; // Just 3 digits
-                var temp = plot_y(y) + 0.5; // keep lines crisp!
+                temp = plot_y(y) + 0.5; // keep lines crisp!
 
                 // grid line
                 c.beginPath();
@@ -2394,23 +2403,22 @@ var cktsim = (function() {
             }
 
             // now draw each plot
-            var x, y;
             var nx, ny;
             c.lineWidth = 3;
             c.lineCap = 'round';
-            for (var plot = y_values.length - 1; plot >= 0; plot -= 1) {
-                var color = probe_colors_rgb[y_values[plot][0]];
+            for (plot = y_values.length - 1; plot >= 0; plot -= 1) {
+                color = probe_colors_rgb[y_values[plot][0]];
                 if (color === undefined) continue; // no plot color (== x-axis)
                 c.strokeStyle = color;
-                var values = y_values[plot][2];
+                values = y_values[plot][2];
                 if (values === undefined) continue; // no data points
-                var offset = y_values[plot][1];
+                offset = y_values[plot][1];
 
                 x = plot_x(x_values[0]);
                 y = plot_y(values[0] + offset);
                 c.beginPath();
                 c.moveTo(x, y);
-                for (var i = 1; i < x_values.length; i += 1) {
+                for (i = 1; i < x_values.length; i += 1) {
                     nx = plot_x(x_values[i]);
                     ny = plot_y(values[i] + offset);
                     c.lineTo(nx, ny);
@@ -2444,9 +2452,9 @@ var cktsim = (function() {
             c.strokeStyle = normal_style;
             var tick_length_half = Math.floor(tick_length / 2);
             var tick_delta = tick_length - tick_length_half;
-            for (var z = z_min; z <= z_max; z += z_limits[2]) {
+            for (z = z_min; z <= z_max; z += z_limits[2]) {
                 if (Math.abs(z / z_max) < 0.001) z = 0.0; // Just 3 digits
-                var temp = plot_z(z) + 0.5; // keep lines crisp!
+                temp = plot_z(z) + 0.5; // keep lines crisp!
 
                 // tick mark
                 c.beginPath();
@@ -2456,22 +2464,21 @@ var cktsim = (function() {
                 c.fillText(jade.engineering_notation(z, 2), left_margin + pwidth + tick_length + 2, temp);
             }
 
-            var z;
             var nz;
             c.lineWidth = 3;
-            for (var plot = z_values.length - 1; plot >= 0; plot -= 1) {
-                var color = probe_colors_rgb[z_values[plot][0]];
+            for (plot = z_values.length - 1; plot >= 0; plot -= 1) {
+                color = probe_colors_rgb[z_values[plot][0]];
                 if (color === undefined) continue; // no plot color (== x-axis)
                 c.strokeStyle = color;
-                var values = z_values[plot][2];
+                values = z_values[plot][2];
                 if (values === undefined) continue; // no data points
-                var offset = z_values[plot][1];
+                offset = z_values[plot][1];
 
                 x = plot_x(x_values[0]);
                 z = plot_z(values[0] + offset);
                 c.beginPath();
                 c.moveTo(x, z);
-                for (var i = 1; i < x_values.length; i += 1) {
+                for (i = 1; i < x_values.length; i += 1) {
                     var nx = plot_x(x_values[i]);
                     var nz = plot_z(values[i] + offset);
                     c.lineTo(nx, nz);
