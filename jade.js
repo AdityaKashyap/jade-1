@@ -142,11 +142,8 @@ var jade = (function() {
             // get contents from the server
             var args = {
                 async: false, // hang until load completes
-                url: 'server.cgi',
+                url: 'libraries/' + lname,
                 type: 'GET',
-                data: {
-                    file: lname
-                },
                 dataType: 'json',
                 error: function(jqXHR, textStatus, errorThrown) {
                     alert(errorThrown);
