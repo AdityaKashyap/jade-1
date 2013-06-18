@@ -842,6 +842,11 @@ var jade = (function() {
         return c;
     };
 
+    Component.prototype.has_aspect = function(name) {
+	if (this.module !== undefined) return this.module.has_aspect(name);
+	else return false;
+    }
+
     Component.prototype.set_select = function(which) {
         this.selected = which;
     };
@@ -1238,7 +1243,7 @@ var jade = (function() {
                 continue;
             }
 
-            if (this.module.has_aspect(Schematic.prototype.editor_name)) {
+            if (this.has_aspect(Schematic.prototype.editor_name)) {
                 var sch = this.module.aspect(Schematic.prototype.editor_name);
                 // extract component's schematic, add to our netlist
                 var p = prefix + this.name;
@@ -2842,7 +2847,7 @@ var jade = (function() {
         this.toolbar.add_tool('down', down_icon, 'Down in the hierarchy: view selected included module', schematic_down,
             function(diagram) {
                var selected = diagram.aspect.selected_component();
-              if (selected !== undefined) return selected.module.has_aspect(Schematic.prototype.editor_name);
+              if (selected !== undefined) return selected.has_aspect(Schematic.prototype.editor_name);
               else return false;
             });
         this.toolbar.add_tool('up', up_icon, 'Up in the hierarchy: return to including module', schematic_up,
@@ -2902,7 +2907,7 @@ var jade = (function() {
 
     function schematic_down(diagram) {
         var selected = diagram.aspect.selected_component();
-        if (selected !== undefined && selected.module.has_aspect(Schematic.prototype.editor_name)) {
+        if (selected !== undefined && selected.has_aspect(Schematic.prototype.editor_name)) {
             var e = diagram.editor;
             e.hierarchy_stack.push(diagram.aspect.module); // remember what we were editing
             e.jade.edit(selected.module);
@@ -3067,6 +3072,7 @@ var jade = (function() {
     Wire.prototype.constructor = Wire;
     built_in_components.wire = Wire;
     var wire_module = {
+	has_aspect: function () {return false;},
         properties: {
             "signal": {
                 "type": "string",
